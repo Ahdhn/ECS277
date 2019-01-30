@@ -173,4 +173,5 @@ $RECYCLE.BIN/
 # Mac desktop service store files
 .DS_Store
 
-Projects/*/build/
+Projects/**/build/
+Projects/project1/data/

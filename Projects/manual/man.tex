@@ -1,0 +1,76 @@
+\documentclass[12pt]{article}
+\usepackage{amsmath}
+\usepackage[top=0.9in, bottom=0.9in, left=0.8in, right=0.5in]{geometry}
+
+
+\usepackage{float}
+\usepackage{graphicx}
+\usepackage{subfig}
+\usepackage{wrapfig,lipsum}
+\usepackage{amssymb}
+\usepackage{nath}
+\usepackage{amsfonts}
+\usepackage{hhline}
+
+\begin{document}
+
+\title{ECS 277 - Winter 2019 - Project 1}
+\author{Ahmed Mahmoud}
+\date{} 
+
+\maketitle
+
+\newcommand{\cn}{Crank-Nicolson}
+
+This is the manual for running the ray casting program from the command line. The following command line can be used to run the program  \texttt{RayCasting.exe -option X}. Below is a list of all available options. 
+\vspace{5mm}
+
+%============table========
+\begin{figure}[tbh]
+
+  
+\begin{tabular}{ |l| l|}
+  \hline
+  Option & Effect   \\ \hhline{|=|=|}
+  \texttt{-h}  &  Display this massage and exits \\
+  \texttt{-input}  &  Input file. Input file should under the \textsf{data/} subdirectory \\
+  \texttt{-model}  &   Model name used to name output images \\
+  \texttt{-xn}  &    Number of grid points in the x-direction \\
+  \texttt{-yn}  &    Number of grid points in the y-direction \\
+  \texttt{-zn}  &    Number of grid points in the z-direction \\
+  \texttt{-x\_lower}  &     X coordinates of the gird lower corner \\
+  \texttt{-y\_lower}  &     Y coordinates of the gird lower corner \\
+  \texttt{-z\_lower}  &     Z coordinates of the gird lower corner \\
+  \texttt{-x\_upper}  &      X coordinates of the gird upper corner \\  
+  \texttt{-y\_upper}  &      Y coordinates of the gird upper corner \\  
+  \texttt{-z\_upper}  &      Z coordinates of the gird upper corner \\  
+  \texttt{-bits}  &      bit size of the input .raw file \\  
+  \texttt{-bg\_r}  &      Red channel for the background color between 0 to 255 \\  
+  \texttt{-bg\_g}  &      Green channel for the background color between 0 to 255 \\  
+  \texttt{-bg\_b}  &      Blue channel for the background color between 0 to 255 \\    
+  \texttt{-bg\_a}  &      Alpha channel for the background color between 0 to 1 \\      
+  \texttt{-light\_r}  &     Red channel for the light color between 0 to 255 \\      
+  \texttt{-light\_g}  &     Green channel for the light color between 0 to 255 \\      
+  \texttt{-light\_b}  &     Blue channel for the light color between 0 to 255 \\      
+  \texttt{-light\_b}  &     Alpha channel for the light color between 0 to 1 \\      
+  \texttt{-res\_x}  &       Image resolution in the x-direction \\      
+  \texttt{-res\_y}  &       Image resolution in the y-direction \\      
+  \texttt{-proj}  &       The projection direction where the value represents the axis of the normal\\  
+			         &   and the sign represents the direction e.g., -1 is projection along x-axis looking\\
+			         &   at the grid back face. 3 is projection along z-axis pointing to the grid top face\\      
+  \texttt{-samples}  &   Number of samples per cell \\      
+    
+  \hline
+\end{tabular} 
+
+   \label{tab:metric}
+\end{figure} 
+	        
+\newpage
+
+
+
+
+\bibliography{../mybib}
+\bibliographystyle{plain}
+\end{document}

@@ -1,9 +1,77 @@
 #ifndef __COMMON__
 #define __COMMON__
 
-struct color_t {
-	float r, g, b, a;
+#define EPSILON 10E-6
+
+enum class INTERPOL_TYPE{
+	TRILINEAR = 1,
+	TRICUBIC = 2
 };
+
+struct color_t {
+	//the color range is from 0 to 255	
+	double r, g, b, a;
+
+	void clamp(){
+		clamp_comp(r, 1.0);
+		clamp_comp(g, 1.0);
+		clamp_comp(b, 1.0);
+		clamp_comp(a, 1.0);
+	}
+
+	color_t operator=(const color_t&copy){		
+		this->r = copy.r;
+		this->g = copy.g;
+		this->b = copy.b;
+		this->a = copy.a;
+		return *this;
+	}
+
+
+	color_t operator+=(color_t&c1){
+		this->r += c1.r;
+		this->g += c1.g;
+		this->b += c1.b;
+		this->a += c1.a;
+		return *this;
+	}
+	
+	color_t operator*=(color_t&c1){
+		this->r *= c1.r;
+		this->g *= c1.g;
+		this->b *= c1.b;
+		this->a *= c1.a;
+		return *this;
+	}
+
+	template<typename T>
+	color_t operator*=(const T scale){
+		this->r *= scale;
+		this->g *= scale;
+		this->b *= scale;
+		this->a *= scale;
+		return *this;
+	}
+
+	template<typename T>
+	color_t operator/=(const T scale){
+		this->r /= scale;
+		this->g /= scale;
+		this->b /= scale;
+		//this->a /= scale;
+		return *this;
+	}
+
+
+
+private:
+	template<typename T>
+	void clamp_comp(T&comp, const T val){
+		comp = (comp > val) ? val : comp;
+		comp = (comp < 0) ? 0 : comp;
+	}
+};
+
 
 //********************** STRINGIFY
 //http://www.decompile.com/cpp/faq/file_and_line_error_string.htm
@@ -12,7 +80,6 @@ struct color_t {
 #define TOSTRING(x) #x
 #endif
 //******************************************************************************
-
 
 //********************** Command Line Parser
 inline char* getCmdOption(char ** begin, char ** end, const std::string &option)
@@ -52,7 +119,7 @@ inline void Err(std::string err_line, const char *file, int line) {
 //******************************************************************************
 
 template<typename T>
-inline T Dist(T x1, double y1, T z1, T x2, T y2, T z2)
+inline T Dist(T x1, T y1, T z1, T x2, T y2, T z2)
 {
 	T dx, dy, dz;
 	dx = x1 - x2;
@@ -94,6 +161,11 @@ inline T Dot(T xv1, T yv1, T zv1, T xv2, T yv2, T zv2)
 {
 	return xv1*xv2 + yv1*yv2 + zv1*zv2;
 }
+template<typename T>
+inline T Dot(T v1[3], T v2[3])
+{
+	return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
+}
 
 template<typename T>
 inline bool ray_plane_intersect(T pp_x, T pp_y, T pp_z, //point on plane 
@@ -129,4 +201,37 @@ inline bool ray_plane_intersect(T pp_x, T pp_y, T pp_z, //point on plane
 	return true;
 
 }
+
+template <typename T>
+T vector_mag(T vec[3]){
+	T mag = sqrt(vec[0] * vec[0] + vec[1] * vec[1] + vec[2] * vec[2]);
+	return mag;
+}
+
+template<typename T>
+inline void compute_avg_stddev(const T*arr, uint32_t size, double &avg,
+	double&stddev){
+	if (size == 1){
+		avg = arr[0];
+		stddev = 0;
+		return;
+	}
+	avg = 0;
+	//compute avg
+	for (uint32_t i = 0; i < size; i++){
+		avg += double(arr[i]);
+	}
+	avg /= size;
+
+	//compute stddev
+	double sum = 0;
+	for (uint32_t i = 0; i < size; i++){
+		float diff = double(arr[i]) - avg;
+		sum += diff*diff;
+	}
+	stddev = sqrt(sum / double(size - 1));
+	return;
+
+}
+
 #endif /*__COMMON__*/

@@ -35,7 +35,8 @@ set(SRC_DIRECTORY "./" )
 get_filename_component(SRC_DIRECTORY ${SRC_DIRECTORY} ABSOLUTE)
 message( "SRC_DIRECTORY= " ${SRC_DIRECTORY})
 set( MY_INCLUDES  "./" ${CMAKE_CURRENT_SOURCE_DIR}
-					   ${SRC_DIRECTORY}/src)
+					   ${SRC_DIRECTORY}/src
+					   external/colormap)
 					   
 include_directories(${MY_INCLUDES})
 
