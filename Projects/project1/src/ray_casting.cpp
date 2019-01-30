@@ -212,9 +212,9 @@ void init_grid(std::string filename, Grid<T, T_d, DIM>*&grid, T_d&f_value_min,
 
 int main(int argc, char**argv){
 
-	std::string inputfilename = STRINGIFY(INPUT_DIR)"liver22/07_Liver_256_256_22_16bit_uchar_LE.raw";
+	std::string inputfilename = STRINGIFY(INPUT_DIR)"stent/stent16.raw";
 
-	std::string model_name = "liver22";
+	std::string model_name = "stent";
 
 	index_t samples_per_cell = 1;
 
@@ -683,6 +683,7 @@ int main(int argc, char**argv){
 		model_name](data_t f_value){
 		color_t color;
 		COLOR_MAP cm = COLOR_MAP::MAGMA;
+		
 
 		if (model_name == "tooth"){
 			cm = COLOR_MAP::RAINBOW;
