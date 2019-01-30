@@ -212,9 +212,9 @@ void init_grid(std::string filename, Grid<T, T_d, DIM>*&grid, T_d&f_value_min,
 
 int main(int argc, char**argv){
 
-	std::string inputfilename = STRINGIFY(INPUT_DIR)"liver16/03_Liver_256_256_16_16bit_uchar_LE.raw";
+	std::string inputfilename = STRINGIFY(INPUT_DIR)"liver22/07_Liver_256_256_22_16bit_uchar_LE.raw";
 
-	std::string model_name = "liver16";
+	std::string model_name = "liver22";
 
 	index_t samples_per_cell = 1;
 
@@ -299,6 +299,16 @@ int main(int argc, char**argv){
 
 		grid_upper[0] = grid_upper[1] = 1.0;
 		grid_upper[2] = (256 * 1.6769) / (12 * 16);
+
+		projection = -3;
+	}
+
+	if (model_name == "liver22"){
+		n_grid[0] = n_grid[1] = 256;
+		n_grid[2] = 22;
+
+		grid_upper[0] = grid_upper[1] = 1.0;
+		grid_upper[2] = (256 * 1.6769) / (10 * 22);
 
 		projection = -3;
 	}
@@ -628,6 +638,11 @@ int main(int argc, char**argv){
 	if (model_name == "set1"){
 		min_threshold = 10;
 		max_threshold = 90;
+	}
+
+	if (model_name == "liver22"){
+		min_threshold = 100;
+		max_threshold = 450;
 	}
 
 	//Alpha Transfer Function 
