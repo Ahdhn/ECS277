@@ -174,4 +174,4 @@ $RECYCLE.BIN/
 .DS_Store
 
 Projects/**/build/
-Projects/project1/data/
+#Projects/project1/data/
