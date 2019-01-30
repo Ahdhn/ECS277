@@ -1,0 +1,9 @@
+Width 256
+Height 161
+Depth 256
+WidthDim 1
+HeightDim 1
+DepthDim 1
+MinVal 0
+MaxVal 1300
+BitsUsed 16
