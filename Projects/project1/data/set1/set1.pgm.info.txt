@@ -1,0 +1,8 @@
+Width 256
+Height 256
+Depth 247
+WidthSize 1
+HeightSize 1
+DepthSize 1
+ColorDepth 8
+BitsUsed 16
