@@ -1,0 +1,8 @@
+Width 512
+Height 512
+Depth 174
+WidthSize 0.8398
+HeightSize 0.8398
+DepthSize 3.2
+ColorDepth 12
+BitsUsed 16
