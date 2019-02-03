@@ -15,7 +15,7 @@ public:
 	ScatData(bool is_analytical, int num_data);
 
 	void fill_data(T data_id, scat_data_t<T_d> data){
-
+		
 		if (data_id >= m_num_data){
 			PRINT_ERROR("ScatData::fill_data() id is out of range!!!");
 		}
@@ -23,6 +23,8 @@ public:
 		m_data[data_id].y = data.y;
 		m_data[data_id].z = data.z;
 		m_data[data_id].f = data.f;
+
+		set_max_min(data_id);
 	}
 
 	void fill_data(T data_id, T_d x, T_d y, T_d z, T_d f){
@@ -33,9 +35,11 @@ public:
 		m_data[data_id].y = y;
 		m_data[data_id].z = z;
 		m_data[data_id].f = f;
+
+		set_max_min(data_id);
 	}
 
-	scat_data_t<T_d> get_data(T data_id){		
+	scat_data_t<T_d> get_data(const T data_id){		
 		return m_data[data_id];
 	}
 
@@ -69,7 +73,10 @@ public:
 		}
 	}
 		
-	void get_data(T data_id, T_d&x, T_d&y, T_d&z, T_d&f){
+	void get_data(const T data_id, T_d&x, T_d&y, T_d&z, T_d&f){
+		if (data_id >= m_num_data){
+			PRINT_ERROR("ScatData::get_data() data_id out of range");
+		}
 		x = m_data[data_id]->x;
 		y = m_data[data_id]->y;
 		z = m_data[data_id]->z;
@@ -81,28 +88,31 @@ public:
 	}
 
 	T_d interpolate(T_d x, T_d y, T_d z, INTERPOL_METHOD method);
-	
-	
+		
 	void export_data(std::string filename);
 	~ScatData(){};
 
 private:
+	inline T_d shepard(const T_d x, const T_d y, const T_d z,
+		const T shepard_num);
+
+	inline T_d hardy(T_d&x, T_d&y, T_d&z);
+
+	inline void set_max_min(const T id);
+	inline bool check_point(const T_d x, const T_d y, const T_d z);
+
 	bool m_is_analytical;
 	T m_num_data;	
 	scat_data_t<T_d> * m_data;
 	
 	bool m_s1_precomputed, m_s2_precomputed,m_s3_precomputed, m_h_precomputed;
 
-	inline T_d shepard(const T_d x, const T_d y, const T_d z, 
-		const T shepard_num);
-	
-	inline T_d hardy(T_d&x, T_d&y, T_d&z);
-
 	KdTree *m_kd_tree;
 	double *m_point;
 	bool m_kd_built;
 	std::vector<int>m_knn_container;//used to contain the returned indeices of knn
-
+	T_d m_x0[3]; //lower most corner 
+	T_d m_x1[3]; //upper most corner 
 };
 
 template <class T, class T_d>
@@ -120,11 +130,40 @@ m_is_analytical(is_analytical), m_num_data(num_data){
 	m_point = new double[3];
 
 	m_kd_built = false;
+
+	m_x0[0] = m_x0[1] = m_x0[1] = std::numeric_limits<T_d>::max();
+	m_x1[0] = m_x1[1] = m_x1[1] = -std::numeric_limits<T_d>::max();
+}
+
+template <class T, class T_d>
+inline void ScatData<T, T_d>::set_max_min(const T id){
+	m_x0[0] = std::min(m_x0[0], m_data[id].x);
+	m_x0[1] = std::min(m_x0[1], m_data[id].y);
+	m_x0[2] = std::min(m_x0[2], m_data[id].z);
+
+	m_x1[0] = std::max(m_x1[0], m_data[id].x);
+	m_x1[1] = std::max(m_x1[1], m_data[id].y);
+	m_x1[2] = std::max(m_x1[2], m_data[id].z);
+}
+
+template <class T, class T_d>
+inline bool ScatData<T, T_d>::check_point(const T_d x, const T_d y, const T_d z){
+
+	if (x - EPSILON > m_x1[0] || y - EPSILON > m_x1[1] || z - EPSILON> m_x1[2] ||
+		x + EPSILON < m_x0[0] || y + EPSILON < m_x0[1] || z + EPSILON < m_x0[2]){
+		return false;
+	}
+	return true;
 }
 
 template<class T, class T_d>
 inline T_d ScatData<T, T_d>::interpolate(T_d x, T_d y, T_d z, 
 	INTERPOL_METHOD method){
+
+	//if (!check_point(x, y, z)){
+	//	PRINT_ERROR("ScatData::interpolate() input point outside the bounding box ("+
+	//		std::to_string(x)+ ", "+ std::to_string(y)+ ", "+ std::to_string(z) + ")");
+	//}
 
 	if (method == INTERPOL_METHOD::S1){
 		return shepard(x, y, z, 1);
@@ -173,12 +212,9 @@ inline T_d ScatData<T, T_d>::shepard(const T_d x, const T_d y, const T_d z,
 		dist = 1.0 / dist;
 		T_d fi;
 
-		if (shepard_num == 1){
+		if (shepard_num == 1 || shepard_num == 2){
 			fi = m_data[i].f;
-		}
-		else if (shepard_num == 2){
-			fi = m_data[i].f;
-		}
+		}		
 		else if (shepard_num == 3){
 			
 		}

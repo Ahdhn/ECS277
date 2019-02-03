@@ -56,15 +56,17 @@ void read_file_raw(std::string filename, uint32_t x0, uint32_t x1, uint32_t x2,
 template<typename T, typename T_d, typename bits_type>
 void init_grid(std::string filename, Grid<T, T_d, DIM>*&grid, T_d&f_value_min,
 	T_d&f_value_max, T n_grid[3], T_d grid_lower[3], T_d grid_upper[3],
-	T_d bk_color[4], T_d l_color[4]){
+	T_d bk_color[4], T_d l_color[4], ScatData<T, T_d>*data = nullptr, 
+	INTERPOL_METHOD scat_data_interpol_method = INTERPOL_METHOD::S1){
 	
 	//read input file and fill in the data 
 	//unsigned short*raw_data = NULL;
 	//unsigned char*raw_data = NULL;
-	
-	bits_type* raw_data = NULL;
+	bits_type* raw_data = nullptr;
 
-	read_file_raw(filename, n_grid[0], n_grid[1], n_grid[2], raw_data);
+	if (filename.size() > 1){
+		read_file_raw(filename, n_grid[0], n_grid[1], n_grid[2], raw_data);
+	}
 
 	//testing on five cocentric spheres 
 	//sphere0, f=0.5, radius = 0.2 
@@ -140,60 +142,31 @@ void init_grid(std::string filename, Grid<T, T_d, DIM>*&grid, T_d&f_value_min,
 		
 	uint32_t total_size = n[0] * n[1] * n[2];
 
+	
 	for (uint32_t i = 0; i < total_size; i++){
-		T_d my_data = T_d(raw_data[i]);
+		T_d my_data;
+		if (raw_data != nullptr){
+			my_data = T_d(raw_data[i]);
+		}
+		else if (data != nullptr){
+			T_d xx, yy, zz;
+			my_grid.get_location(i, xx, yy, zz);
+			my_data = data->interpolate(xx, yy, zz,
+				scat_data_interpol_method);
+		}
+		else{
+			PRINT_ERROR("init_grid():: no vaild source to fill in the grid");
+		}
 		my_grid.fill_grid(i, my_data);
 		f_value_min = std::min(f_value_min, my_data);
 		f_value_max = std::max(f_value_max, my_data);
 	}
-
-
-	/*for (uint32_t i = 0; i < n[0]; i++){		
-		for (uint32_t j = 0; j < n[1]; j++){
-			for (uint32_t k = 0; k < n[2]; k++){
-
-				T_d val = 0.0;
-
-				T_d dist = Dist(x_lower[0] + 0.5, x_lower[1] + 0.5,
-					x_lower[2] + 0.5,
-					x_lower[0] + T_d(i)*s[0], x_lower[1] + T_d(j)*s[1], 
-					x_lower[2] + T_d(k)*s[2]);
-
-				
-
-				//if (dist < r0_sq){ val = 1.0; }				
-				//else{
-				//	val = 0.0;
-				//}
-
-				//if (dist < r0_sq){ val = f0; }
-				//else if (dist < r1_sq){ val = f1; }
-				//else { val = f2; }
-				
-				
-				{
-					T_d xx = T_d(i)*(T_d(x_upper[0]) - T_d(x_lower[0])) / T_d(n[0]);
-					T_d yy = T_d(j)*(T_d(x_upper[1]) - T_d(x_lower[1])) / T_d(n[1]);
-					T_d zz = T_d(k)*(T_d(x_upper[2]) - T_d(x_lower[2])) / T_d(n[2]);
-
-					val = xx*xx + yy*yy + zz*zz;
-					val = sqrt(val);
-				}
-
-				my_grid.fill_grid(i, j, k, val);
-
-				f_value_min = std::min(f_value_min, val);
-				f_value_max = std::max(f_value_max, val);
-			}			
-		}
-	}*/
+	
 	
 	if (f_value_min != 0){
-		//shift values so that f_value_min = 0
+		//shift values so that f_value_min = 0		
 		for (uint32_t i = 0; i < total_size; i++){
-			T_d my_data = T_d(raw_data[i]);
-			my_grid.fill_grid(i, my_data - f_value_min);
-			f_value_max = std::max(f_value_max, my_data);
+			my_grid.fill_grid(i, my_grid.get_value(i) - f_value_min);
 		}
 		f_value_max -= f_value_min;
 		f_value_min = 0;
@@ -201,12 +174,16 @@ void init_grid(std::string filename, Grid<T, T_d, DIM>*&grid, T_d&f_value_min,
 
 	double avg(0), stddev(0);
 
-	compute_avg_stddev(raw_data, total_size, avg, stddev);
-	std::cout << "\n        Function max value=  " << f_value_max << std::endl;
-	std::cout << "        Function min value=  " << f_value_min << std::endl;
-	std::cout << "        Function avg value=  " << avg << std::endl;
-	std::cout << "        Function std dev=    " << stddev << std::endl;
+	if (raw_data != nullptr){
+		compute_avg_stddev(raw_data, total_size, avg, stddev);
+		std::cout << "\n        Function max value=  " << f_value_max << std::endl;
+		std::cout << "        Function min value=  " << f_value_min << std::endl;
+		std::cout << "        Function avg value=  " << avg << std::endl;
+		std::cout << "        Function std dev=    " << stddev << std::endl;
+	}
 
+
+	//my_grid.export_grid("grid.csv");
 	grid = &my_grid;
 }
 
@@ -246,11 +223,11 @@ int main(int argc, char**argv){
 
 	std::string inputfilename = STRINGIFY(INPUT_DIR)"stent/stent16.raw";
 
-	std::string model_name = "stent";
+	std::string model_name = "lol";
 
 	index_t samples_per_cell = 1;
 
-	index_t n_grid[3]; n_grid[0] = n_grid[1] = n_grid[2] = 512;
+	index_t n_grid[3]; n_grid[0] = n_grid[1] = n_grid[2] = 50;
 		
 	index_t bits = 16;
 
@@ -614,23 +591,30 @@ int main(int argc, char**argv){
 	data_t data_f_value_min(0), data_f_value_max(0);
 	ScatData<index_t, data_t> *my_data= NULL;
 	init_data<index_t, data_t, unsigned char>("", my_data, data_f_value_min, 
-		data_f_value_max,10000);
+		data_f_value_max,1000);
 
 	my_data->export_data("data.csv");
+
 	my_data->precomute(INTERPOL_METHOD::S1);
 	my_data->precomute(INTERPOL_METHOD::S2);
 
-	//TODO fix S1 and S2, add S3 and H. Pass ScatData to build the grid
+	//TODO add S3 and H. Pass ScatData to build the grid
 	//Create a slice grid class (or just add it inside grid) 
-	my_data->interpolate(0.0, 0.0, 0.0, INTERPOL_METHOD::S1);
-	my_data->interpolate(0.0, 0.0, 0.0, INTERPOL_METHOD::S2);
+
+	
+	bits = 0;
 
 	//Init grid 
 	Grid<index_t, data_t, DIM> *my_grid = NULL;
 	data_t f_value_min(0), f_value_max(0);
 
-
-	if (bits == 8){
+	if (bits == 0){
+		//for testing with analytical function 
+		init_grid<index_t, data_t, unsigned char>("", my_grid,
+			f_value_min, f_value_max, n_grid, grid_lower, grid_upper, bg_color,
+			light_color, my_data, INTERPOL_METHOD::S1);
+	}
+	else if (bits == 8){
 		init_grid<index_t, data_t, unsigned char>(inputfilename, my_grid, 
 			f_value_min, f_value_max, n_grid, grid_lower, grid_upper, bg_color,
 			light_color);

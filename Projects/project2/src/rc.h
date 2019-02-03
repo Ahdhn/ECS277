@@ -161,14 +161,14 @@ void RC<T, T_i, T_d>::run_raycasting(Image<T, T_i, T_d>*image,
 				}
 				
 				
-				/*{
-					if (s == 90){
+				{
+					if (s == 25){
 						pixel_color = local_color;
 						pixel_color.a = 1.0;
 
 						break;
 					}
-				}*/
+				}
 
 				//clamp 
 				pixel_color.clamp();

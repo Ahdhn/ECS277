@@ -25,7 +25,7 @@ public:
 		T my_flat_id = flat_id(i, j, k);
 		m_data[my_flat_id] = data;
 	};
-
+		
 	void fill_grid(T data_flat_id, T_d data){		
 		if (data_flat_id >= m_grid_size){
 			PRINT_ERROR("Grid::fill_grid() id is out of range!!!");
@@ -33,9 +33,24 @@ public:
 		m_data[data_flat_id] = data;
 	}
 		
+	void get_location(const T my_flat_id, T_d&x, T_d&y, T_d&z){
+		T i(0), j(0), k(0);
+		unflat_id(my_flat_id, i, j, k);
+		get_location(i, j, k, x, y,z);		
+	}
 
+	void get_location(const T i, const T j, const T k, T_d&x, T_d&y, T_d&z){
+		x = i*m_s[0] + m_x0[0];
+		y = j*m_s[1] + m_x0[1];
+		z = k*m_s[2] + m_x0[2];
+	}
+	
 	T_d get_value(T i, T j, T k){
 		T my_flat_id = flat_id(i,j,k);
+		return m_data[my_flat_id];
+	}
+
+	T_d get_value(T my_flat_id){		
 		return m_data[my_flat_id];
 	}
 
@@ -73,6 +88,7 @@ public:
 
 private:
 	inline T flat_id(T i, T j, T k);
+	inline void unflat_id(T flat_id, T&i, T&j, T&k);
 	bool ray_grid_plane_intersect(T plane_id, T_d ray_org[3], T_d ray_dir[3],
 		T_d point[3]);
 	inline void get_grid_plane(T plane_num, T plane[3]);
@@ -197,8 +213,16 @@ Grid<T, T_d, DIM>::Grid(T n[3], T_d x0[3], T_d s[3], color_t background_color,
 
 	m_background_color /= 255.0;
 	m_light_color /= 255.0;
-	m_ambient_light /= 255.0;
+	m_ambient_light /= 255.0;	
+}
 
+
+template<class T, class T_d, uint32_t DIM>
+inline void Grid<T, T_d, DIM>::unflat_id(T flat_id, T&i, T&j, T&k){
+	k = flat_id / (m_n[0] * m_n[1]);
+	flat_id -= (k * m_n[0] * m_n[1]);
+	j = flat_id / m_n[0];
+	i = flat_id % m_n[0];
 }
 
 template<class T, class T_d, uint32_t DIM>
@@ -296,8 +320,6 @@ inline void Grid<T, T_d, DIM>::gird_corners_coordinates(T corner_num,
 
 
 }
-
-
 
 template<class T, class T_d, uint32_t DIM>
 bool Grid<T, T_d, DIM>::get_ray_grid_intersect(T_d ray_org[3], T_d ray_dir[3], 
@@ -487,9 +509,9 @@ void Grid<T, T_d, DIM>::export_grid(std::string filename){
 	file.precision(12);
 	file << "x coord,y coord,z coord,intensity" << std::endl;
 
-	for (uint32_t i = 50; i < 100; i++){
+	for (uint32_t i = 0; i < m_n[0]; i++){
 		T_d xx = m_x0[0] + i*m_s[0];
-		for (uint32_t j = 150; j < m_n[1]; j++){
+		for (uint32_t j = 0; j < m_n[1]; j++){
 			T_d yy = m_x0[1] + j*m_s[1];
 			for (uint32_t k = 0; k < m_n[2]; k++){
 				T_d zz = m_x0[2] + k*m_s[2];
