@@ -258,87 +258,16 @@ int main(int argc, char**argv){
 
 	index_t image_res[2]; image_res[0] = image_res[1] = 512;
 
-	int projection = 1;
+	int projection = 2;
 
-	if (model_name == "stent"){
-		n_grid[0] = n_grid[1] = 512;
-		n_grid[2] = 174;
-		grid_upper[2] = 1.0;
-		grid_upper[0] = grid_upper[1] = (512 * 0.8398) / (174 * 3.2);
-		projection = 2;
-	}
+	int scat_data_interpol_method = 2;
+	INTERPOL_METHOD scat_data_interpol;
 
-	if (model_name == "tooth"){
-		n_grid[0] = n_grid[2] = 256;
-		n_grid[1] = 161;
+	uint32_t num_data = 1000;
+	
+	uint32_t K = 10;
 
-		grid_upper[0] = grid_upper[1] = 1.0;
-		grid_upper[2] = 161.0 / 256.0;
-		
-		projection = -3;
-
-	}
-
-	if (model_name == "comunix"){
-		n_grid[0] = n_grid[1] = 128;
-		n_grid[2] = 83;
-
-		grid_upper[0] = grid_upper[1] = (128.0 * 2.0593637) / (83 * 3.3750001);
-		grid_upper[2] = 1.0;
-
-		projection = -3;
-	}
-
-	if (model_name == "wbscan"){
-		n_grid[0] = n_grid[1] = 128;
-		n_grid[2] = 180;
-
-		grid_upper[0] = grid_upper[1] = 128.0/180.0;
-		grid_upper[2] = 1.0;
-
-		projection = -3;
-	}
-
-	if (model_name == "vessels"){
-		n_grid[0] = n_grid[1] = 384;
-		n_grid[2] = 72;
-
-		grid_upper[0] = grid_upper[1] = 1.0;
-		grid_upper[2] = (72.0*1.5)/(384*1.0026);
-
-		projection = -3;
-	}
-
-	if (model_name == "set1"){
-		n_grid[0] = n_grid[1] = 256;
-		n_grid[2] = 247;
-
-		grid_upper[0] = grid_upper[1] = 1.0;
-		grid_upper[2] = 247.0/256.0;
-
-		projection = -3;
-	}
-
-	if (model_name == "liver16"){
-		n_grid[0] = n_grid[1] = 256;
-		n_grid[2] = 16;
-
-		grid_upper[0] = grid_upper[1] = 1.0;
-		grid_upper[2] = (256 * 1.6769) / (12 * 16);
-
-		projection = -3;
-	}
-
-	if (model_name == "liver22"){
-		n_grid[0] = n_grid[1] = 256;
-		n_grid[2] = 22;
-
-		grid_upper[0] = grid_upper[1] = 1.0;
-		grid_upper[2] = (256 * 1.6769) / (10 * 22);
-
-		projection = -3;
-	}
-
+	double R = 0.1;
 
 	//Command line args 
 	if (argc > 1){
@@ -382,29 +311,29 @@ int main(int argc, char**argv){
 			std::cout << " -bits:     bit size of the input .raw file" << std::endl;
 			std::cout << "            The default is " << bits << std::endl << std::endl;
 
-			std::cout << " -bg_r:     Red channel for the background color bteween 0 to 255" << std::endl;
-			std::cout << "            The default is " << bg_color[0] << std::endl << std::endl;
-
-			std::cout << " -bg_g:     Green channel for the background color" << std::endl;
-			std::cout << "            The default is " << bg_color[1] << std::endl << std::endl;
-						
-			std::cout << " -bg_b:     Blue channel for the background color bteween 0 to 255" << std::endl;
-			std::cout << "            The default is " << bg_color[2] << std::endl << std::endl;
-
-			std::cout << " -bg_a:     Alpha channel for the background color bteween 0 to 1" << std::endl;
-			std::cout << "            The default is " << bg_color[3] << std::endl << std::endl;
+			//std::cout << " -bg_r:     Red channel for the background color bteween 0 to 255" << std::endl;
+			//std::cout << "            The default is " << bg_color[0] << std::endl << std::endl;
+			//
+			//std::cout << " -bg_g:     Green channel for the background color" << std::endl;
+			//std::cout << "            The default is " << bg_color[1] << std::endl << std::endl;
+			//			
+			//std::cout << " -bg_b:     Blue channel for the background color bteween 0 to 255" << std::endl;
+			//std::cout << "            The default is " << bg_color[2] << std::endl << std::endl;
+			//
+			//std::cout << " -bg_a:     Alpha channel for the background color bteween 0 to 1" << std::endl;
+			//std::cout << "            The default is " << bg_color[3] << std::endl << std::endl;
 			
-			std::cout << " -light_r:  Red channel for the light color bteween 0 to 255" << std::endl;
-			std::cout << "            The default is " << light_color[0] << std::endl << std::endl;
-
-			std::cout << " -light_g:  Green channel for the light color bteween 0 to 255" << std::endl;
-			std::cout << "            The default is " << light_color[1] << std::endl << std::endl;
-
-			std::cout << " -light_b:  Blue channel for the light color bteween 0 to 255" << std::endl;
-			std::cout << "            The default is " << light_color[2] << std::endl << std::endl;
-
-			std::cout << " -light_a:  Alpha channel for the light color bteween 0 to 1" << std::endl;
-			std::cout << "            The default is " << light_color[3] << std::endl << std::endl;
+			//std::cout << " -light_r:  Red channel for the light color bteween 0 to 255" << std::endl;
+			//std::cout << "            The default is " << light_color[0] << std::endl << std::endl;
+			//
+			//std::cout << " -light_g:  Green channel for the light color bteween 0 to 255" << std::endl;
+			//std::cout << "            The default is " << light_color[1] << std::endl << std::endl;
+			//
+			//std::cout << " -light_b:  Blue channel for the light color bteween 0 to 255" << std::endl;
+			//std::cout << "            The default is " << light_color[2] << std::endl << std::endl;
+			//
+			//std::cout << " -light_a:  Alpha channel for the light color bteween 0 to 1" << std::endl;
+			//std::cout << "            The default is " << light_color[3] << std::endl << std::endl;
 
 			std::cout << " -res_x:    Image resolution in the x-direction" << std::endl;
 			std::cout << "            The default is " << image_res[0] << std::endl << std::endl;
@@ -412,28 +341,44 @@ int main(int argc, char**argv){
 			std::cout << " -res_y:    Image resolution in the y-direction" << std::endl;
 			std::cout << "            The default is " << image_res[1] << std::endl << std::endl;
 
-			std::cout << " -proj:     The projection direction where the value represents the axis of the normal ";
-			std::cout << "            and the sign represents the direction e.g., -1 is projection along x-axis looking ";
-			std::cout << "            at the grid back face. 3 is projection along z-axis pointing to the grid top face";
+			std::cout << " -proj:     The projection direction where the value represents the axis of the normal " << std::endl;
+			std::cout << "            and the sign represents the direction e.g., -1 is projection along x-axis looking " << std::endl;
+			std::cout << "            at the grid back face. 3 is projection along z-axis pointing to the grid top face" << std::endl;
 			std::cout << "            The default is " << projection << std::endl << std::endl;			
 
 			std::cout << " -samples:  Number of samples per cell" << std::endl;
 			std::cout << "            The default is " << samples_per_cell << std::endl << std::endl;
 
+			std::cout << " -scat:     Indicates scatter data interpolation method where" << std::endl;
+			std::cout << "            0 = Global Shepard 1" << std::endl;
+			std::cout << "            1 = Localized Shepard 1" << std::endl;
+			std::cout << "            2 = Global Shepard 2" << std::endl;
+			std::cout << "            3 = Localized Shepard 2" << std::endl;
+			std::cout << "            4 = Global Multiquadric Hardy's" << std::endl;
+			std::cout << "            5 = Localized Multiquadric Hardy's" << std::endl;
+			std::cout << "            6 = Global Reciprocal Hardy's" << std::endl;
+			std::cout << "            7 = Localized Reciprocal Hardy's" << std::endl;
+			std::cout << "            The default is " << scat_data_interpol_method << std::endl;
 
+			std::cout << " -num_data: Number of scatter data points." << std::endl;
+			std::cout << "            The default is " << num_data << std::endl << std::endl;
 
+			std::cout << " -k:        Number of K nearest neighbours used for localized methods" << std::endl;
+			std::cout << "            The default is " << K << std::endl << std::endl;
+
+			std::cout << " -r:        Constant used with Hardy method" << std::endl;
+			std::cout << "            The default is " << R << std::endl << std::endl;
+			
 			exit(EXIT_SUCCESS);
-
 		}
+
 		if (cmdOptionExists(argv, argc + argv, "-input")){
 			inputfilename = STRINGIFY(INPUT_DIR) +
 				std::string(getCmdOption(argv, argv + argc, "-input"));
 		}
-
 		if (cmdOptionExists(argv, argc + argv, "-model")){
 			model_name = std::string(getCmdOption(argv, argv + argc, "-model"));
 		}
-
 		if (cmdOptionExists(argv, argc + argv, "-samples")){
 			samples_per_cell = atoi(getCmdOption(argv, argv + argc, "-samples"));
 		}
@@ -518,7 +463,59 @@ int main(int argc, char**argv){
 		if (cmdOptionExists(argv, argc + argv, "-proj")){
 			projection = atoi(getCmdOption(argv, argv + argc, "-proj"));
 		}
+
+		if (cmdOptionExists(argv, argc + argv, "-scat")){
+			scat_data_interpol_method = 
+				atoi(getCmdOption(argv, argv + argc, "-scat"));			
+		}
+		if (cmdOptionExists(argv, argc + argv, "-num_data")){
+			num_data = atoi(getCmdOption(argv, argv + argc, "-num_data"));
+		}
+		if (cmdOptionExists(argv, argc + argv, "-k")){
+			K = atoi(getCmdOption(argv, argv + argc, "-k"));
+		}
+		if (cmdOptionExists(argv, argc + argv, "-r")){
+			R = atoi(getCmdOption(argv, argv + argc, "-r"));
+		}
 	}
+
+	std::string image_prefix;
+	if (scat_data_interpol_method == 0){
+		scat_data_interpol = INTERPOL_METHOD::S1_G;
+		image_prefix = model_name + "S1_G_";
+	}
+	else if (scat_data_interpol_method == 1){
+		scat_data_interpol = INTERPOL_METHOD::S1_L;
+		image_prefix = model_name + "S1_L_";
+	}
+	else if (scat_data_interpol_method == 2){
+		scat_data_interpol = INTERPOL_METHOD::S2_G;
+		image_prefix = model_name + "S2_G_";
+	}
+	else if (scat_data_interpol_method == 3){
+		scat_data_interpol = INTERPOL_METHOD::S2_L;
+		image_prefix = model_name + "S2_L_";
+	}
+	else if (scat_data_interpol_method == 4){
+		scat_data_interpol = INTERPOL_METHOD::H_G_MQ;
+		image_prefix = model_name + "H_G_MQ_";
+	}
+	else if (scat_data_interpol_method == 5){
+		scat_data_interpol = INTERPOL_METHOD::H_L_MQ;
+		image_prefix = model_name + "H_L_MQ_";
+	}
+	else if (scat_data_interpol_method == 6){
+		scat_data_interpol = INTERPOL_METHOD::H_G_RE;
+		image_prefix = model_name + "H_G_RE";
+	}
+	else if (scat_data_interpol_method == 7){
+		scat_data_interpol = INTERPOL_METHOD::H_L_RE;
+		image_prefix = model_name + "H_L_RE";
+	}
+	else{
+		PRINT_ERROR("Invalid scatter data interpolation method. It should be [0,7]");
+	}
+
 
 	std::cout << "	input= " << inputfilename << std::endl;
 	std::cout << "	model= " << model_name << std::endl;
@@ -537,12 +534,16 @@ int main(int argc, char**argv){
 	std::cout << "	projection= " << projection << std::endl;
 	std::cout << "	samples= " << samples_per_cell << std::endl;
 	std::cout << "	image_resolution= " << image_res[0] << " X " << image_res[1] << std::endl;
-		
+	std::cout << "	scat_data_interpol_method= " << scat_data_interpol_method << std::endl;
+	std::cout << "	num_data= " << num_data << std::endl;
+	std::cout << "	k= " << K << std::endl;
+	std::cout << "	R= " << R << std::endl;
+	
 
 	//setup the image using the right projection
 	data_t image_x0[3], image_xn[3], image_normal[3];		
 	data_t frac = 0.1 *(grid_upper[0] - grid_lower[0]);
-	std::string image_prefix;
+	
 	if (abs(projection) == 3){
 		//Image point to +ve z-axis 
 		data_t dist_z = grid_upper[2] - grid_lower[2];
@@ -559,7 +560,7 @@ int main(int argc, char**argv){
 		image_normal[1] = 0;
 		image_normal[2] = (projection < 0) ? -1 : 1;
 
-		image_prefix = model_name + ((projection < 0) ? "-z" : "+z");
+		image_prefix += ((projection < 0) ? "-z" : "+z");
 	}
 	else if (abs(projection) == 2){
 		//Image point to -ve y-axis 
@@ -577,7 +578,7 @@ int main(int argc, char**argv){
 		image_normal[1] = (projection < 0) ? -1 : 1;
 		image_normal[2] = 0;
 
-		image_prefix = model_name + ((projection < 0) ? "-y" : "+y");
+		image_prefix += ((projection < 0) ? "-y" : "+y");
 	}
 	else if (abs(projection) == 1){
 		//Image point to -ve x-axis 
@@ -595,7 +596,7 @@ int main(int argc, char**argv){
 		image_normal[1] = 0;
 		image_normal[2] = 0;
 
-		image_prefix = model_name + ((projection < 0) ? "-x" : "+x");
+		image_prefix += ((projection < 0) ? "-x" : "+x");
 	}
 	else {
 		PRINT_ERROR("Invalid projection direction");
@@ -608,11 +609,11 @@ int main(int argc, char**argv){
 	data_t data_f_value_min(0), data_f_value_max(0);
 	ScatData<index_t, data_t> *my_data= NULL;
 	init_data<index_t, data_t, unsigned char>("", my_data, data_f_value_min, 
-		data_f_value_max, 1000);
+		data_f_value_max, num_data);
 
-	my_data->export_data("data.csv");
+	//my_data->export_data("data.csv");
 		
-	my_data->precompute(INTERPOL_METHOD::H_G_RE);
+	my_data->precompute(scat_data_interpol, K, R);
 		
 	//to indicate that the grid data comes from scatter data
 	bits = 0;
@@ -625,15 +626,14 @@ int main(int argc, char**argv){
 		//for testing with analytical function 
 		init_grid<index_t, data_t, unsigned char>("", my_grid,
 			f_value_min, f_value_max, n_grid, grid_lower, grid_upper, bg_color,
-			light_color, my_data, INTERPOL_METHOD::H_G_RE, 10, 0.1);
-		
+			light_color, my_data, scat_data_interpol, K, R);
 	}
 	else if (bits == 8){
 		init_grid<index_t, data_t, unsigned char>(inputfilename, my_grid, 
 			f_value_min, f_value_max, n_grid, grid_lower, grid_upper, bg_color,
 			light_color);
 	}
-	else if (bits == 16) {
+	else if (bits == 16){
 		init_grid<index_t, data_t, unsigned short>(inputfilename, my_grid, 
 			f_value_min, f_value_max, n_grid, grid_lower, grid_upper, bg_color,
 			light_color);
@@ -645,114 +645,32 @@ int main(int argc, char**argv){
 	//image for the trilinear case
 	TGAImage tga_image_linear(image_res[0], image_res[1], TGAImage::RGBA);
 	Image<index_t, int_t, data_t> my_image_linear(image_res, image_x0, image_xn, 
-		image_normal, &tga_image_linear, image_prefix + "_.tga",
-		flip_vertical, flip_horizontal);	
+		image_normal, &tga_image_linear, image_prefix + ".tga",
+		flip_vertical, flip_horizontal);
 
-	//init the ray-caster   
+	//init renderer   
 	Renderer<index_t, int_t, data_t> my_renderer(my_grid, samples_per_cell);
 	
-	//skip threshold 
-	data_t min_threshold(f_value_min), max_threshold(f_value_max);
 
-	if (model_name == "stent"){
-		min_threshold = 1000;
-		max_threshold = 2000;
-	}
-
-	if (model_name == "tooth"){
-		min_threshold = 500;
-		max_threshold = 950;
-	}
-
-	if (model_name == "comunix"){
-		min_threshold = 930;
-		max_threshold = 10000;
-	}
-
-	if (model_name == "vessels"){
-		min_threshold = 1000;
-		max_threshold = 3000;
-	}
-
-
-	if (model_name == "set1"){
-		min_threshold = 10;
-		max_threshold = 90;
-	}
-
-	if (model_name == "liver22"){
-		min_threshold = 100;
-		max_threshold = 450;
-	}
-
-	//Alpha Transfer Function 
-	auto alpha_transfer_func = [f_value_min, f_value_max, min_threshold, max_threshold,
-	model_name](data_t f_value){
-
-		/*if (f_value - EPSILON < f_value_min){
-		return 0.0;
-		}
-		else if (f_value + EPSILON > f_value_max){
-		return 1.0;
-		}
-
-		data_t val = (f_value - f_value_min) / (f_value_max - f_value_min);*/
-
-		if (f_value - EPSILON < min_threshold){
-			return 0.0;
-		}
-		else if (f_value + EPSILON > max_threshold){
-			return 1.0;
-		}
-
-		data_t val = (f_value - min_threshold) / (max_threshold - min_threshold);
-
-		//with stent 
-		if (model_name == "stent"){
-			if (f_value > min_threshold && f_value < max_threshold){
-				val *= 1.4;
-				val = std::min(val, 1.0);
-			}
-		}		
-
-		return val;
-	};
-	
 	//Color Transfer Function 
-	auto color_transfer_func = [f_value_min, f_value_max, min_threshold, max_threshold,
+	auto color_transfer_func = [f_value_min, f_value_max,
 		model_name](data_t f_value){
 		color_t color;
 		COLOR_MAP cm = COLOR_MAP::RAINBOW;
-		
-
 		if (model_name == "tooth"){
 			cm = COLOR_MAP::RAINBOW;
 		}
-
 		colormap(cm,
-			(f_value - min_threshold) / (max_threshold - min_threshold) //f_value / f_value_max
+			(f_value - f_value_min) / (f_value_max - f_value_min) //f_value / f_value_max
 			,color.r, color.g, color.b);
-
 		return color;
 	};
 
-	//Skip Transfer Function 
-	auto skip_transfer_func = [f_value_min, f_value_max, min_threshold, max_threshold](data_t f_value){		
-		if (f_value < min_threshold || f_value > max_threshold){
-			return true;
-		}
-		return false;
-	};
-
+	
 	//do slicing 
 	my_renderer.slice(&my_image_linear, color_transfer_func,0.5);
 
-	//do the ray casting 
-	//my_renderer.run_raycasting(&my_image_linear, color_transfer_func, 
-	//	alpha_transfer_func, skip_transfer_func, INTERPOL_TYPE::TRILINEAR);	
-
 	
-		
 	
 	system("pause");
 

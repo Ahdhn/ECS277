@@ -259,14 +259,24 @@ void KdTree::FindNNearest(double*point, const int N, std::vector<int>&nNearest)
 
 	//std::vector<int> nNearest;
 	nNearest.clear();
+	int min_id;
+	double  min_dist = DBL_MAX;
+	
 	for (int i = 0; i < N; i++){
-		nNearest.push_back(best[i]->myID);
+		nNearest.push_back(best[i]->myID);		
+		if (min_dist > best[i]->dist){
+			min_dist = best[i]->dist;
+			min_id = i;
+		}
 	}
-
-	//return nNearest;
+	//push the closest one to be the first
+	std::swap(nNearest[0], nNearest[min_id]);
+	
 
 }
-void KdTree::getNNearestRecursive(int N, struct kd_node_t *root, const struct kd_node_t *testNode, int i, struct kd_node_t **best, double *best_dist, int&nFound)
+void KdTree::getNNearestRecursive(int N, struct kd_node_t *root,
+	const struct kd_node_t *testNode, int i, 
+	struct kd_node_t **best, double *best_dist, int&nFound)
 {
 	if (!root){ return; }
 	double d = Dist(root, testNode); //sq distance 

@@ -46,19 +46,25 @@ public:
 		return m_data[data_id];
 	}
 
-	void precompute(INTERPOL_METHOD method, uint32_t K = 5, double R = 0.1){
+	void precompute(INTERPOL_METHOD method, uint32_t K = 5,
+		double R = 0.1){
 		if (!m_kd_built){
 			m_kd_tree->BuildTree(m_data);
 			m_kd_built = true;
-		}						
-		if (method == INTERPOL_METHOD::H_G_MQ || 
+		}
+		if (method == INTERPOL_METHOD::H_G_MQ ||
 			method == INTERPOL_METHOD::H_G_RE){
+
+			m_M_hardy.resize(m_num_data, m_num_data);
+			m_C_hardy.resize(m_num_data);
+			m_F_hardy.resize(m_num_data);
+
 			m_h_precomputed = true;
 			//precompute the coefficient C in Hardy's 
 
 			for (T i = 0; i < m_num_data; i++){
 				for (T j = 0; j < m_num_data; j++){
-					
+
 					m_M_hardy(i, j) = sqrt(R*R + Dist(m_data[i].x, m_data[i].y,
 						m_data[i].z, m_data[j].x, m_data[j].y, m_data[j].z));
 					if (method == INTERPOL_METHOD::H_G_RE){
@@ -69,7 +75,7 @@ public:
 			}
 			//solve the system 
 			m_C_hardy = m_M_hardy.colPivHouseholderQr().solve(m_F_hardy);
-		}
+		}			
 	}
 		
 	void get_data(const T data_id, T_d&x, T_d&y, T_d&z, T_d&f){
@@ -148,9 +154,7 @@ m_is_analytical(is_analytical), m_num_data(num_data){
 	m_x0[0] = m_x0[1] = m_x0[1] = std::numeric_limits<T_d>::max();
 	m_x1[0] = m_x1[1] = m_x1[1] = -std::numeric_limits<T_d>::max();
 
-	m_M_hardy.resize(m_num_data, m_num_data);
-	m_C_hardy.resize(m_num_data);
-	m_F_hardy.resize(m_num_data);
+	
 
 }
 
@@ -314,12 +318,60 @@ inline T_d ScatData<T, T_d>::hardy_global(T_d&x, T_d&y, T_d&z,
 template<class T, class T_d>
 inline T_d ScatData<T, T_d>::hardy_local(T_d&x, T_d&y, T_d&z,
 	bool is_reciprocal /*= false*/, const T K /* = 5*/, const T_d R /*= 0.1*/){
+
+
+	m_point[0] = x;
+	m_point[1] = y;
+	m_point[2] = z;
+	m_kd_tree->FindNNearest(m_point, K, m_k_nearest);
 	
+	if (m_k_nearest.size() != K){
+		PRINT_ERROR("ScatData::hardy_local() can not find the K nearest neighbours!!");
+	}
+	if (Dist(x, y, z, m_data[m_k_nearest[0]].x, m_data[m_k_nearest[0]].y,
+		m_data[m_k_nearest[0]].z) < EPSILON){
+		return m_data[m_k_nearest[0]].f;
+	}
+	
+	if (m_M_hardy.size() == 0){
+		m_M_hardy.resize(K, K);
+	}
+	if (m_C_hardy.size() == 0){
+		m_C_hardy.resize(K);
+	}
+	if (m_F_hardy.size() == 0){
+		m_F_hardy.resize(K);
+	}
 
+	for (T i = 0; i < K; i++){
+		for (T j = 0; j < K; j++){
 
+			m_M_hardy(i, j) = sqrt(R*R + Dist(m_data[m_k_nearest[i]].x,
+				m_data[m_k_nearest[i]].y, m_data[m_k_nearest[i]].z, 
+				m_data[m_k_nearest[j]].x, m_data[m_k_nearest[j]].y,
+				m_data[m_k_nearest[j]].z));
+			if (is_reciprocal){
+				m_M_hardy(i, j) = 1.0 / m_M_hardy(i, j);
+			}
+		}
+		m_F_hardy(i) = m_data[m_k_nearest[i]].f;
+	}
+	//solve the system 
+	m_C_hardy = m_M_hardy.colPivHouseholderQr().solve(m_F_hardy);
 
-
-	return 0;
+	//get val
+	T_d val = 0;
+	for (T i = 0; i < K; i++){
+		T_d tt = R*R + Dist(x, y, z, m_data[m_k_nearest[i]].x, 
+			m_data[m_k_nearest[i]].y, m_data[m_k_nearest[i]].z);
+		tt = sqrt(tt);
+		if (is_reciprocal){
+			tt = 1.0 / tt;
+		}
+		val += m_C_hardy(i)*tt;
+	}
+	
+	return val;
 }
 
 template <class T, class T_d>
