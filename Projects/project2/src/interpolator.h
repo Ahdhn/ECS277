@@ -4,7 +4,8 @@
 
 template<typename T_d>
 T_d interpolator_trilinear(const T_d sample[3], const T_d base_cell_corner[3],
-	const T_d spacing [3], const T_d cell_f_value[8], T_d grad[3]){	
+	const T_d spacing [3], const T_d cell_f_value[8], T_d grad[3],
+	bool skip_gradient = false){
 
 	//Trilinear interpolate function at sample using function at six cell corners 	
 
@@ -34,20 +35,22 @@ T_d interpolator_trilinear(const T_d sample[3], const T_d base_cell_corner[3],
 		    (1 - x)*(y)*(z)*c011 +
 		    (x)*(y)*(z)*c111;
 
-	grad[0] = (1 - y)*(1 - z)*(c100 - c000) +
-		      (y)*(1 - z)*(c110 - c010) +
-		      (1 - y)*(z)*(c101 - c001) +
-		      (y)*(z)*(c111 - c011);
+	if (!skip_gradient){
+		grad[0] = (1 - y)*(1 - z)*(c100 - c000) +
+			      (y)*(1 - z)*(c110 - c010) +
+			      (1 - y)*(z)*(c101 - c001) +
+			      (y)*(z)*(c111 - c011);
 
-	grad[1] = (1 - x)*(1 - z)*(c010 - c000) +
-		      (x)*(1 - z)*(c110 - c100) +
-		      (1 - x)*(z)*(c011 - c001) +
-		      (x)*(z)*(c111 - c101);
+		grad[1] = (1 - x)*(1 - z)*(c010 - c000) +
+			      (x)*(1 - z)*(c110 - c100) +
+			      (1 - x)*(z)*(c011 - c001) +
+			      (x)*(z)*(c111 - c101);
 
-	grad[2] = (1 - x)*(1 - y)*(c001 - c000) +
-		      (x)*(1 - y)*(c101 - c100) +
-		      (1 - x)*(y)*(c011 - c010) +
-		      (x)*(y)*(c111 - c110);
+		grad[2] = (1 - x)*(1 - y)*(c001 - c000) +
+			      (x)*(1 - y)*(c101 - c100) +
+			      (1 - x)*(y)*(c011 - c010) +
+			      (x)*(y)*(c111 - c110);
+	}
 	return f;
 }
 
@@ -88,7 +91,8 @@ T_d BB2(const T_d u, const T i){
 template<typename T_d>
 T_d interpolator_tricubic(const T_d sample[3], const T_d base_cell_corner[3],
 	const T_d spacing[3], const T_d cell_f_value[8], 
-	const T_d cell_approx_g[8][3], T_d grad[3]){
+	const T_d cell_approx_g[8][3], T_d grad[3],
+	bool skip_gradient = false){
 
 	//Tricubic interpolate function at sample using function at six cell corners 	
 
@@ -233,40 +237,41 @@ T_d interpolator_tricubic(const T_d sample[3], const T_d base_cell_corner[3],
 		}
 	}
 
-
-	//computation for the gradient 	
-	//x
-	grad[0] = 0;
-	for (uint32_t i = 0; i < 3; i++){
-		for (uint32_t j = 0; j < 4; j++){
-			for (uint32_t k = 0; k < 4; k++){
-				grad[0] += (b[i + 1][j][k] - b[i][j][k])*BB2(x, i)*BB3(y, j)*BB3(z, k);
+	if (!skip_gradient){
+		//computation for the gradient 	
+		//x
+		grad[0] = 0;
+		for (uint32_t i = 0; i < 3; i++){
+			for (uint32_t j = 0; j < 4; j++){
+				for (uint32_t k = 0; k < 4; k++){
+					grad[0] += (b[i + 1][j][k] - b[i][j][k])*BB2(x, i)*BB3(y, j)*BB3(z, k);
+				}
 			}
 		}
-	}
-	grad[0] *= 3;
+		grad[0] *= 3;
 
-	//y
-	grad[1] = 0;
-	for (uint32_t i = 0; i < 4; i++){
-		for (uint32_t j = 0; j < 3; j++){
-			for (uint32_t k = 0; k < 4; k++){
-				grad[1] += (b[i][j + 1][k] - b[i][j][k])*BB3(x, i)*BB2(y, j)*BB3(z, k);
+		//y
+		grad[1] = 0;
+		for (uint32_t i = 0; i < 4; i++){
+			for (uint32_t j = 0; j < 3; j++){
+				for (uint32_t k = 0; k < 4; k++){
+					grad[1] += (b[i][j + 1][k] - b[i][j][k])*BB3(x, i)*BB2(y, j)*BB3(z, k);
+				}
 			}
 		}
-	}
-	grad[1] *= 3;
+		grad[1] *= 3;
 
-	//z
-	grad[2] = 0;
-	for (uint32_t i = 0; i < 4; i++){
-		for (uint32_t j = 0; j < 4; j++){
-			for (uint32_t k = 0; k < 3; k++){
-				grad[2] += (b[i][j][k + 1] - b[i][j][k])*BB3(x, i)*BB3(y, j)*BB2(z, k);
+		//z
+		grad[2] = 0;
+		for (uint32_t i = 0; i < 4; i++){
+			for (uint32_t j = 0; j < 4; j++){
+				for (uint32_t k = 0; k < 3; k++){
+					grad[2] += (b[i][j][k + 1] - b[i][j][k])*BB3(x, i)*BB3(y, j)*BB2(z, k);
+				}
 			}
 		}
+		grad[2] *= 3;
 	}
-	grad[2] *= 3;
 	
 	return f;
 

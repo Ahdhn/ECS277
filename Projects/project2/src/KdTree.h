@@ -26,7 +26,7 @@ public:
 	//Call this to get the nearest node
 	int FindNearest(double*point);
 	int FindNearest(double xx, double yy, double zz);
-	std::vector<int> FindNNearest(double *point, const  int N);
+	void FindNNearest(double *point, const  int N, std::vector<int>&nNearest);
 	
 
 	~KdTree(){};
@@ -230,7 +230,7 @@ void KdTree::getNearestRecursive(struct kd_node_t *root, const struct kd_node_t 
 
 }
 
-std::vector<int> KdTree::FindNNearest(double*point, const int N)
+void KdTree::FindNNearest(double*point, const int N, std::vector<int>&nNearest)
 {
 	//get the id's of the N nearest samples to 'point'
 
@@ -257,12 +257,13 @@ std::vector<int> KdTree::FindNNearest(double*point, const int N)
 		exit(1);
 	}
 
-	std::vector<int> nNearest;
+	//std::vector<int> nNearest;
+	nNearest.clear();
 	for (int i = 0; i < N; i++){
 		nNearest.push_back(best[i]->myID);
 	}
 
-	return nNearest;
+	//return nNearest;
 
 }
 void KdTree::getNNearestRecursive(int N, struct kd_node_t *root, const struct kd_node_t *testNode, int i, struct kd_node_t **best, double *best_dist, int&nFound)

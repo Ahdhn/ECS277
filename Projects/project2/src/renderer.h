@@ -1,5 +1,5 @@
-#ifndef __RC__
-#define __RC__
+#ifndef __RENDERER__
+#define __RENDERER__
 
 #include "grid.h"
 #include "image.h"
@@ -9,16 +9,23 @@
 //T_i signed int 
 //T_d float/double 
 template <class T, class T_i, class T_d>
-class RC
+class Renderer
 {
 public:
-	RC(Grid<T, T_d, 3>* grid, T samples_per_cell);
+	Renderer(Grid<T, T_d, 3>* grid, T samples_per_cell);
 
 	template<typename ColorTF, typename AlphaTF, typename SkipF>
 	void run_raycasting(Image<T, T_i, T_d>*image, 
 		ColorTF color_trans_func, AlphaTF alpha_trans_func,
 		SkipF threshold_skip_f, INTERPOL_TYPE type = INTERPOL_TYPE::TRILINEAR);
-	~RC(){};
+
+
+	template<typename ColorTF>
+	void slice(Image<T, T_i, T_d>*image,
+		ColorTF color_trans_func, T_d dist = 0.5,
+		INTERPOL_TYPE type = INTERPOL_TYPE::TRILINEAR);
+
+	~Renderer(){};
 
 private:
 	Grid<T, T_d, 3>* m_grid;	
@@ -26,15 +33,96 @@ private:
 };
 
 template <class T, class T_i, class T_d>
-RC<T, T_i, T_d>::RC(Grid<T, T_d, 3>* grid, T samples_per_cell) :
-	m_grid(grid), m_samples_per_cell(samples_per_cell)
-{	
+Renderer<T, T_i, T_d>::Renderer(Grid<T, T_d, 3>* grid, T samples_per_cell) :
+	m_grid(grid), m_samples_per_cell(samples_per_cell){	
 	
+}
+
+template<class T, class T_i, class T_d>
+template<typename ColorTF>
+void Renderer<T, T_i, T_d>::slice(Image<T, T_i, T_d>*image, 
+	ColorTF color_trans_func,
+	T_d dist/* = 0.5*/,
+	INTERPOL_TYPE type /*= INTERPOL_TYPE::TRILINEAR*/){
+
+	//dist is a normalized parameter that decide the 'depth' of the cutting 
+	//dist should be betwee 0 and 1. For every pixel, we shoot a ray to check 
+	//if the pixel can see the grid. We return the line segment inside the grid 
+	//and use dist to be the (normalized) distance we walk to get the depth 
+	//of the slicing plane
+
+	color_t background_color = m_grid->get_background_color();
+	background_color.a = 0.8;
+
+	T_d grad[3];
+
+	T image_res[2];
+	image->get_image_res(image_res[0], image_res[1]);
+		
+
+	//view direction
+	T_d view_dir[3];
+	image->get_image_normal(view_dir[0], view_dir[1], view_dir[2]);
+
+	T_d sample[3];
+
+	for (T i = 0; i < image_res[0]; i++){
+		for (T j = 0; j < image_res[1]; j++){
+
+			T_d pixel[3];
+			image->get_pixel_location(i, j, pixel);
+			
+			//we check if the pixel can see the grid by shooting a ray and check
+			//if it is intersect the grid 
+			T_d seg_start[3], seg_end[3];
+			if (!m_grid->get_ray_grid_intersect(pixel, view_dir, seg_start,
+				seg_end)){				
+				image->set_pixel_color(i, j, background_color);
+				continue;
+			}
+
+
+			T_d seg_len = Dist(seg_start[0], seg_start[1], seg_start[2],
+				seg_end[0], seg_end[1], seg_end[2]);
+
+			color_t pixel_color;
+			pixel_color.r = 0;
+			pixel_color.g = 0;
+			pixel_color.b = 0;
+			pixel_color.a = 0;
+
+
+			for (T p = 0; p < 3; p++){
+				//sample[p] = seg_start[p] + spacing*s*ray_dir[p];
+				sample[p] = seg_end[p] - dist*view_dir[p];
+			}
+
+			if (!m_grid->is_inside_grid(sample)){
+				//if the sample touches the edges of the grid 			
+				image->set_pixel_color(i, j, background_color);
+				continue;
+			}
+
+
+			T_d f_value = m_grid->get_f_value_at_sample(sample, grad, type,
+				true);
+
+			color_t local_color = color_trans_func(f_value);
+
+			local_color.clamp();
+			local_color.a = 1.0;
+
+			image->set_pixel_color(i, j, local_color);
+			
+		}
+	}
+
+	image->export_image();
 }
 
 template <class T, class T_i, class T_d>
 template<typename ColorTF, typename AlphaTF, typename SkipF>
-void RC<T, T_i, T_d>::run_raycasting(Image<T, T_i, T_d>*image,
+void Renderer<T, T_i, T_d>::run_raycasting(Image<T, T_i, T_d>*image,
 	ColorTF color_trans_func, 
 	AlphaTF alpha_trans_func, SkipF threshold_skip_f, 
 	INTERPOL_TYPE type /*= INTERPOL_TYPE::TRILINEAR*/){
@@ -62,7 +150,7 @@ void RC<T, T_i, T_d>::run_raycasting(Image<T, T_i, T_d>*image,
 
 
 	uint32_t num_processed = 0;
-	std::cout << " RC::run_raycasting 0% ";
+	std::cout << " Renderer::run_raycasting 0% ";
 	std::vector<int> percentage(1, 0);
 
 
@@ -77,9 +165,7 @@ void RC<T, T_i, T_d>::run_raycasting(Image<T, T_i, T_d>*image,
 				std::cout << percetnage_processed << "%  ";
 				percentage.push_back(percetnage_processed);
 			}
-
-
-
+			
 			T_d ray_org[3];
 			image->get_pixel_location(i, j, ray_org);
 
@@ -161,14 +247,14 @@ void RC<T, T_i, T_d>::run_raycasting(Image<T, T_i, T_d>*image,
 				}
 				
 				
-				{
+				/*{
 					if (s == 25){
 						pixel_color = local_color;
 						pixel_color.a = 1.0;
 
 						break;
 					}
-				}
+				}*/
 
 				//clamp 
 				pixel_color.clamp();
@@ -191,4 +277,4 @@ void RC<T, T_i, T_d>::run_raycasting(Image<T, T_i, T_d>*image,
 }
 
 
-#endif /*__RC__*/
+#endif /*__RENDERER__*/

@@ -5,6 +5,9 @@
 
 #include "KdTree.h"
 
+#define EIGEN_DONT_ALIGN
+#include <Eigen/Dense>
+
 template <class T, class T_d>
 class ScatData
 {
@@ -43,33 +46,29 @@ public:
 		return m_data[data_id];
 	}
 
-	void precomute(INTERPOL_METHOD method, uint32_t K = 5){
+	void precompute(INTERPOL_METHOD method, uint32_t K = 5, double R = 0.1){
 		if (!m_kd_built){
 			m_kd_tree->BuildTree(m_data);
 			m_kd_built = true;
-		}
-
-		if (method == INTERPOL_METHOD::S1){
-			//nothing to do here
-			m_s1_precomputed = true;
-			return;
-		}
-		else if (method == INTERPOL_METHOD::S2){
-			//nothing to do here
-			m_s2_precomputed = true;
-			return;
-			
-		}
-		else if (method == INTERPOL_METHOD::S3){
-			//precompute the gradient at each point using KNN data point 
-
-		}
-		else if (method == INTERPOL_METHOD::H){
+		}						
+		if (method == INTERPOL_METHOD::H_G_MQ || 
+			method == INTERPOL_METHOD::H_G_RE){
+			m_h_precomputed = true;
 			//precompute the coefficient C in Hardy's 
 
-		}
-		else {
-			PRINT_ERROR("ScatData::precompute() Unknown interpolation method");
+			for (T i = 0; i < m_num_data; i++){
+				for (T j = 0; j < m_num_data; j++){
+					
+					m_M_hardy(i, j) = sqrt(R*R + Dist(m_data[i].x, m_data[i].y,
+						m_data[i].z, m_data[j].x, m_data[j].y, m_data[j].z));
+					if (method == INTERPOL_METHOD::H_G_RE){
+						m_M_hardy(i, j) = 1.0 / m_M_hardy(i, j);
+					}
+				}
+				m_F_hardy(i) = m_data[i].f;
+			}
+			//solve the system 
+			m_C_hardy = m_M_hardy.colPivHouseholderQr().solve(m_F_hardy);
 		}
 	}
 		
@@ -87,16 +86,25 @@ public:
 		return m_num_data;
 	}
 
-	T_d interpolate(T_d x, T_d y, T_d z, INTERPOL_METHOD method);
+	T_d interpolate(T_d x, T_d y, T_d z, INTERPOL_METHOD method, const T K = 5,
+		const T_d R = 0.1);
 		
 	void export_data(std::string filename);
 	~ScatData(){};
 
 private:
-	inline T_d shepard(const T_d x, const T_d y, const T_d z,
+	inline T_d shepard_global(const T_d x, const T_d y, const T_d z,
 		const T shepard_num);
+	
+	inline T_d shepard_local(const T_d x, const T_d y, const T_d z,
+		const T shepard_num, const T K = 5);
+	
+	inline T_d hardy_global(T_d&x, T_d&y, T_d&z, bool is_reciprocal = false,
+		const T_d R = 0.1);
 
-	inline T_d hardy(T_d&x, T_d&y, T_d&z);
+	inline T_d hardy_local(T_d&x, T_d&y, T_d&z, bool is_reciprocal = false,
+		const T K = 5, const T_d R = 0.1);
+
 
 	inline void set_max_min(const T id);
 	inline bool check_point(const T_d x, const T_d y, const T_d z);
@@ -105,7 +113,7 @@ private:
 	T m_num_data;	
 	scat_data_t<T_d> * m_data;
 	
-	bool m_s1_precomputed, m_s2_precomputed,m_s3_precomputed, m_h_precomputed;
+	bool m_h_precomputed;
 
 	KdTree *m_kd_tree;
 	double *m_point;
@@ -113,6 +121,13 @@ private:
 	std::vector<int>m_knn_container;//used to contain the returned indeices of knn
 	T_d m_x0[3]; //lower most corner 
 	T_d m_x1[3]; //upper most corner 
+
+	std::vector<int> m_k_nearest;
+
+	//Hardy matrices 
+	Eigen::MatrixXd m_M_hardy;
+	Eigen::VectorXd m_C_hardy;
+	Eigen::VectorXd m_F_hardy;
 };
 
 template <class T, class T_d>
@@ -121,8 +136,7 @@ m_is_analytical(is_analytical), m_num_data(num_data){
 
 	m_data = (scat_data_t<T_d>*)malloc(m_num_data*sizeof(scat_data_t<T_d>));
 
-	m_s1_precomputed = m_s2_precomputed= m_s3_precomputed = 
-		m_h_precomputed = false;
+	m_h_precomputed = false;
 
 	static KdTree kd(3, m_num_data);
 	m_kd_tree = &kd;	
@@ -133,6 +147,11 @@ m_is_analytical(is_analytical), m_num_data(num_data){
 
 	m_x0[0] = m_x0[1] = m_x0[1] = std::numeric_limits<T_d>::max();
 	m_x1[0] = m_x1[1] = m_x1[1] = -std::numeric_limits<T_d>::max();
+
+	m_M_hardy.resize(m_num_data, m_num_data);
+	m_C_hardy.resize(m_num_data);
+	m_F_hardy.resize(m_num_data);
+
 }
 
 template <class T, class T_d>
@@ -158,24 +177,35 @@ inline bool ScatData<T, T_d>::check_point(const T_d x, const T_d y, const T_d z)
 
 template<class T, class T_d>
 inline T_d ScatData<T, T_d>::interpolate(T_d x, T_d y, T_d z, 
-	INTERPOL_METHOD method){
+	INTERPOL_METHOD method, const T K /* = 5*/, const T_d R /*= 0.1*/ ){
 
 	//if (!check_point(x, y, z)){
 	//	PRINT_ERROR("ScatData::interpolate() input point outside the bounding box ("+
 	//		std::to_string(x)+ ", "+ std::to_string(y)+ ", "+ std::to_string(z) + ")");
 	//}
 
-	if (method == INTERPOL_METHOD::S1){
-		return shepard(x, y, z, 1);
+	if (method == INTERPOL_METHOD::S1_G){
+		return shepard_global(x, y, z, 1);
+	}else if (method == INTERPOL_METHOD::S1_L){
+		return shepard_local(x, y, z, 1, K);
 	}
-	else if (method == INTERPOL_METHOD::S2){
-		return shepard(x, y, z, 2);
+	else if (method == INTERPOL_METHOD::S2_G){
+		return shepard_global(x, y, z, 2);
 	}
-	else if (method == INTERPOL_METHOD::S3){
-		return shepard(x, y, z, 3);
+	else if (method == INTERPOL_METHOD::S2_L){
+		return shepard_local(x, y, z, 2, K);
 	}
-	else if (method == INTERPOL_METHOD::H){
-
+	else if (method == INTERPOL_METHOD::H_G_MQ){
+		return hardy_global(x, y, z, false);
+	}
+	else if (method == INTERPOL_METHOD::H_L_MQ){
+		return hardy_local(x, y, z, false, K);
+	}
+	else if (method == INTERPOL_METHOD::H_G_RE){
+		return hardy_global(x, y, z, true);
+	}
+	else if (method == INTERPOL_METHOD::H_L_RE){
+		return hardy_local(x, y, z, true, K);
 	}
 	else {
 		PRINT_ERROR("ScatData::interpolate() Unknown interpolation method");
@@ -184,12 +214,9 @@ inline T_d ScatData<T, T_d>::interpolate(T_d x, T_d y, T_d z,
 }
 
 template<class T, class T_d>
-inline T_d ScatData<T, T_d>::shepard(const T_d x, const T_d y, const T_d z, 
+inline T_d ScatData<T, T_d>::shepard_global(const T_d x, const T_d y, const T_d z,
 	const T shepard_num){
-	if (!m_s1_precomputed){
-		PRINT_ERROR("ScatData::shepard_one() precompute function should be called first");
-	}
-
+	
 	m_point[0] = x;
 	m_point[1] = y;
 	m_point[2] = z;
@@ -225,12 +252,74 @@ inline T_d ScatData<T, T_d>::shepard(const T_d x, const T_d y, const T_d z,
 	return ff_num / ff_den;
 }
 
+template<class T, class T_d>
+inline T_d ScatData<T, T_d>::shepard_local(const T_d x, const T_d y, const T_d z,
+	const T shepard_num, const T K /* = 5*/){
+
+	m_point[0] = x;
+	m_point[1] = y;
+	m_point[2] = z;
+	m_kd_tree->FindNNearest(m_point, K, m_k_nearest);
+	if (m_k_nearest.size() != K){
+		PRINT_ERROR("ScatData::shepard_local() can not find the K nearest neighbours!!");
+	}
+	if (Dist(x, y, z, m_data[m_k_nearest[0]].x, m_data[m_k_nearest[0]].y,
+		m_data[m_k_nearest[0]].z) < EPSILON){
+		return m_data[m_k_nearest[0]].f;
+	}
+
+	T_d ff_num = 0;
+	T_d ff_den = 0;
+	for (uint32_t p = 0; p < m_k_nearest.size(); p++){
+		uint32_t i = m_k_nearest[p];
+
+		T_d dist = Dist(x, y, z, m_data[i].x, m_data[i].y, m_data[i].z);
+
+		if (shepard_num == 1){
+			dist = sqrt(dist);
+		}
+		dist = 1.0 / dist;
+
+		T_d fi = m_data[i].f;
+				
+		ff_num += dist*fi;
+		ff_den += dist;
+	}
+
+	return ff_num / ff_den;
+
+}
+
 
 template<class T, class T_d>
-inline T_d ScatData<T, T_d>::hardy(T_d&x, T_d&y, T_d&z){
+inline T_d ScatData<T, T_d>::hardy_global(T_d&x, T_d&y, T_d&z, 
+	bool is_reciprocal /*= false*/, const T_d R /*= 0.1*/){
+
 	if (!m_h_precomputed){
 		PRINT_ERROR("ScatData::hardy() precompute function should be called first");
 	}
+
+	T_d val = 0;
+	for (T i = 0; i < m_num_data; i++){
+		T_d tt = R*R + Dist(x, y, z, m_data[i].x, m_data[i].y, m_data[i].z);
+		tt = sqrt(tt);
+		if (is_reciprocal){
+			tt = 1.0 / tt;
+		}		
+		val += m_C_hardy(i)*tt;
+	}
+	return val;
+}
+
+template<class T, class T_d>
+inline T_d ScatData<T, T_d>::hardy_local(T_d&x, T_d&y, T_d&z,
+	bool is_reciprocal /*= false*/, const T K /* = 5*/, const T_d R /*= 0.1*/){
+	
+
+
+
+
+	return 0;
 }
 
 template <class T, class T_d>

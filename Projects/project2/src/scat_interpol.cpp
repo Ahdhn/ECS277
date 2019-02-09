@@ -4,7 +4,7 @@
 
 #include "common.h"
 #include "grid.h"
-#include "rc.h"
+#include "renderer.h"
 #include "image.h"
 
 #include "colormap.h"
@@ -12,6 +12,8 @@
 #include "compare_images.h"
 
 #include "scat_data.h"
+
+
 
 #define DIM 3
 
@@ -57,7 +59,8 @@ template<typename T, typename T_d, typename bits_type>
 void init_grid(std::string filename, Grid<T, T_d, DIM>*&grid, T_d&f_value_min,
 	T_d&f_value_max, T n_grid[3], T_d grid_lower[3], T_d grid_upper[3],
 	T_d bk_color[4], T_d l_color[4], ScatData<T, T_d>*data = nullptr, 
-	INTERPOL_METHOD scat_data_interpol_method = INTERPOL_METHOD::S1){
+	INTERPOL_METHOD scat_data_interpol_method = INTERPOL_METHOD::S2_G, 
+	const T K = 5, const T_d R = 0.1){
 	
 	//read input file and fill in the data 
 	//unsigned short*raw_data = NULL;
@@ -142,8 +145,24 @@ void init_grid(std::string filename, Grid<T, T_d, DIM>*&grid, T_d&f_value_min,
 		
 	uint32_t total_size = n[0] * n[1] * n[2];
 
+
+	uint32_t num_processed = 0;
+	std::cout << " init_grid::filling the grid 0% ";
+	std::vector<int> percentage(1, 0);
+
 	
 	for (uint32_t i = 0; i < total_size; i++){
+
+		num_processed++;
+		int percetnage_processed = int(100 * double(num_processed) /
+			double(total_size));
+		if (percetnage_processed % 10 == 0
+			&& percetnage_processed != percentage.back()){
+			std::cout << percetnage_processed << "%  ";
+			percentage.push_back(percetnage_processed);
+		}
+
+
 		T_d my_data;
 		if (raw_data != nullptr){
 			my_data = T_d(raw_data[i]);
@@ -152,7 +171,7 @@ void init_grid(std::string filename, Grid<T, T_d, DIM>*&grid, T_d&f_value_min,
 			T_d xx, yy, zz;
 			my_grid.get_location(i, xx, yy, zz);
 			my_data = data->interpolate(xx, yy, zz,
-				scat_data_interpol_method);
+				scat_data_interpol_method, K, R);
 		}
 		else{
 			PRINT_ERROR("init_grid():: no vaild source to fill in the grid");
@@ -195,9 +214,7 @@ void init_data(std::string filename, ScatData<T, T_d>*&data, T_d&f_value_min,
 	f_value_max = -std::numeric_limits<T_d>::max();
 
 	static ScatData<T, T_d> my_data(true, num_data);
-
-
-
+	
 	if (filename.size() <= 1){
 		//analytical function
 		
@@ -591,17 +608,13 @@ int main(int argc, char**argv){
 	data_t data_f_value_min(0), data_f_value_max(0);
 	ScatData<index_t, data_t> *my_data= NULL;
 	init_data<index_t, data_t, unsigned char>("", my_data, data_f_value_min, 
-		data_f_value_max,1000);
+		data_f_value_max, 1000);
 
 	my_data->export_data("data.csv");
-
-	my_data->precomute(INTERPOL_METHOD::S1);
-	my_data->precomute(INTERPOL_METHOD::S2);
-
-	//TODO add S3 and H. Pass ScatData to build the grid
-	//Create a slice grid class (or just add it inside grid) 
-
-	
+		
+	my_data->precompute(INTERPOL_METHOD::H_G_RE);
+		
+	//to indicate that the grid data comes from scatter data
 	bits = 0;
 
 	//Init grid 
@@ -612,7 +625,8 @@ int main(int argc, char**argv){
 		//for testing with analytical function 
 		init_grid<index_t, data_t, unsigned char>("", my_grid,
 			f_value_min, f_value_max, n_grid, grid_lower, grid_upper, bg_color,
-			light_color, my_data, INTERPOL_METHOD::S1);
+			light_color, my_data, INTERPOL_METHOD::H_G_RE, 10, 0.1);
+		
 	}
 	else if (bits == 8){
 		init_grid<index_t, data_t, unsigned char>(inputfilename, my_grid, 
@@ -628,21 +642,14 @@ int main(int argc, char**argv){
 		PRINT_ERROR("Invalid bits size" + std::to_string(bits));
 	}
 	
-
 	//image for the trilinear case
 	TGAImage tga_image_linear(image_res[0], image_res[1], TGAImage::RGBA);
 	Image<index_t, int_t, data_t> my_image_linear(image_res, image_x0, image_xn, 
-		image_normal, &tga_image_linear, image_prefix + "_trilinear.tga",
-		flip_vertical, flip_horizontal);
-
-	//image for the tricubic case
-	TGAImage tga_image_cubic(image_res[0], image_res[1], TGAImage::RGBA);
-	Image<index_t, int_t, data_t> my_image_cubic(image_res, image_x0, image_xn,
-		image_normal, &tga_image_cubic, image_prefix + "_tricubic.tga",
-		flip_vertical, flip_horizontal);
+		image_normal, &tga_image_linear, image_prefix + "_.tga",
+		flip_vertical, flip_horizontal);	
 
 	//init the ray-caster   
- 	RC<index_t, int_t, data_t> rc(my_grid, samples_per_cell);
+	Renderer<index_t, int_t, data_t> my_renderer(my_grid, samples_per_cell);
 	
 	//skip threshold 
 	data_t min_threshold(f_value_min), max_threshold(f_value_max);
@@ -715,7 +722,7 @@ int main(int argc, char**argv){
 	auto color_transfer_func = [f_value_min, f_value_max, min_threshold, max_threshold,
 		model_name](data_t f_value){
 		color_t color;
-		COLOR_MAP cm = COLOR_MAP::MAGMA;
+		COLOR_MAP cm = COLOR_MAP::RAINBOW;
 		
 
 		if (model_name == "tooth"){
@@ -737,23 +744,15 @@ int main(int argc, char**argv){
 		return false;
 	};
 
-	//do the ray casting using TRILINEAR interpolation
-	rc.run_raycasting(&my_image_linear, color_transfer_func, alpha_transfer_func,
-		skip_transfer_func, INTERPOL_TYPE::TRILINEAR);
+	//do slicing 
+	my_renderer.slice(&my_image_linear, color_transfer_func,0.5);
+
+	//do the ray casting 
+	//my_renderer.run_raycasting(&my_image_linear, color_transfer_func, 
+	//	alpha_transfer_func, skip_transfer_func, INTERPOL_TYPE::TRILINEAR);	
+
 	
-
-	//do the ray casting using TRICUBIC interpolation
-	rc.run_raycasting(&my_image_cubic, color_transfer_func, alpha_transfer_func,
-		skip_transfer_func, INTERPOL_TYPE::TRICUBIC);
 		
-	//compute the error bewtween the two images 
-	data_t total_error = compare_images(&my_image_linear, &my_image_cubic, 
-		image_prefix + "_error_image.tga");
-	std::fstream file(image_prefix + "_error.txt", std::ios::out);
-	file.precision(30);
-
-	file << "\n total_error = " << total_error << std::endl;
-	std::cout << "\n total_error = " << total_error << std::endl;
 	
 	system("pause");
 

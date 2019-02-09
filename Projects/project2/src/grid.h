@@ -67,7 +67,7 @@ public:
 	}
 
 	T_d get_f_value_at_sample(T_d sample[3], T_d grad[3], INTERPOL_TYPE 
-		type = INTERPOL_TYPE::TRILINEAR);
+		type = INTERPOL_TYPE::TRILINEAR, bool skip_gradient = false);
 	
 	color_t get_background_color(){
 		return m_background_color;
@@ -394,12 +394,12 @@ bool Grid<T, T_d, DIM>::ray_grid_plane_intersect(T plane_id, T_d ray_org[3],
 	//make sure the point is actually inside the gird face 
 	//TODO generalize this incase the grid is not axis-aligned 
 
-	if (point[0] < grid_planes[plane_id].lower[0] ||
-		point[0] > grid_planes[plane_id].upper[0] ||
-		point[1] < grid_planes[plane_id].lower[1] ||
-		point[1] > grid_planes[plane_id].upper[1] ||
-		point[2] < grid_planes[plane_id].lower[2] ||
-		point[2] > grid_planes[plane_id].upper[2]){
+	if (point[0] + EPSILON < grid_planes[plane_id].lower[0] && abs(ray_dir[0]) < EPSILON ||
+		point[0] - EPSILON > grid_planes[plane_id].upper[0] && abs(ray_dir[0]) < EPSILON ||
+		point[1] + EPSILON < grid_planes[plane_id].lower[1] && abs(ray_dir[1]) < EPSILON ||
+		point[1] - EPSILON > grid_planes[plane_id].upper[1] && abs(ray_dir[1]) < EPSILON ||
+		point[2] + EPSILON < grid_planes[plane_id].lower[2] && abs(ray_dir[2]) < EPSILON ||
+		point[2] - EPSILON > grid_planes[plane_id].upper[2] && abs(ray_dir[2]) < EPSILON){
 		return false;
 	}
 
@@ -410,7 +410,8 @@ bool Grid<T, T_d, DIM>::ray_grid_plane_intersect(T plane_id, T_d ray_org[3],
 
 template<class T, class T_d, uint32_t DIM>
 T_d Grid<T, T_d, DIM>::get_f_value_at_sample(T_d sample[3], T_d grad[3],
-	INTERPOL_TYPE type /*= INTERPOL_TYPE::TRILINEAR*/){
+	INTERPOL_TYPE type /*= INTERPOL_TYPE::TRILINEAR*/, 
+	bool skip_gradient /*= false*/){
 
 	//use interpolator to get this function
 
@@ -489,12 +490,12 @@ T_d Grid<T, T_d, DIM>::get_f_value_at_sample(T_d sample[3], T_d grad[3],
 
 	if (type == INTERPOL_TYPE::TRILINEAR){
 		return interpolator_trilinear(sample, m_base_cell_corner, m_s,
-			m_cell_f_value, grad);
+			m_cell_f_value, grad, skip_gradient);
 	}
 	else if (type == INTERPOL_TYPE::TRICUBIC){
 		//compute the approximated graident 
 		return interpolator_tricubic(sample, m_base_cell_corner, m_s,
-			m_cell_f_value, m_cell_approx_grad, grad);
+			m_cell_f_value, m_cell_approx_grad, grad, skip_gradient);
 
 	}
 	else{

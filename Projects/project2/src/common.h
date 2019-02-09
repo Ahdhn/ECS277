@@ -15,10 +15,14 @@ struct scat_data_t
 };
 
 enum class INTERPOL_METHOD {
-	S1 = 0,
-	S2 = 1,
-	S3 = 2,
-	H = 3,
+	S1_G = 0,//Global Shepard 1
+	S1_L = 1,//Localized Shepard 1	
+	S2_G = 2,//Global Shepard 2		
+	S2_L = 3,//Localized Shepard 2		
+	H_G_MQ = 4,//Global Multiquadric Hardy's
+	H_L_MQ = 5,//Localized Multiquadric Hardy's
+	H_G_RE = 6,//Global Reciprocal Hardy's
+	H_L_RE = 7,//Localized Reciprocal Hardy's
 };
 
 struct kd_node_t{
