@@ -20,9 +20,13 @@ public:
 		SkipF threshold_skip_f, INTERPOL_TYPE type = INTERPOL_TYPE::TRILINEAR);
 
 
-	template<typename ColorTF>
+	template<typename ColorTF, typename AnalyticalFunc>
+
 	void slice(Image<T, T_i, T_d>*image,
-		ColorTF color_trans_func, T_d dist = 0.5,
+		ColorTF color_trans_func, 
+		AnalyticalFunc analytical_func,
+		T_d dist = 0.5,
+		bool compute_error = true,
 		INTERPOL_TYPE type = INTERPOL_TYPE::TRILINEAR);
 
 	~Renderer(){};
@@ -39,10 +43,12 @@ Renderer<T, T_i, T_d>::Renderer(Grid<T, T_d, 3>* grid, T samples_per_cell) :
 }
 
 template<class T, class T_i, class T_d>
-template<typename ColorTF>
+template<typename ColorTF, typename AnalyticalFunc>
 void Renderer<T, T_i, T_d>::slice(Image<T, T_i, T_d>*image, 
 	ColorTF color_trans_func,
+	AnalyticalFunc analytical_func,
 	T_d dist/* = 0.5*/,
+	bool compute_error/* = true*/, 
 	INTERPOL_TYPE type /*= INTERPOL_TYPE::TRILINEAR*/){
 
 	//dist is a normalized parameter that decide the 'depth' of the cutting 
@@ -78,6 +84,10 @@ void Renderer<T, T_i, T_d>::slice(Image<T, T_i, T_d>*image,
 			if (!m_grid->get_ray_grid_intersect(pixel, view_dir, seg_start,
 				seg_end)){				
 				image->set_pixel_color(i, j, background_color);
+
+				if (compute_error){					
+					image->accumelate_error(i, j, background_color);
+				}
 				continue;
 			}
 
@@ -97,23 +107,33 @@ void Renderer<T, T_i, T_d>::slice(Image<T, T_i, T_d>*image,
 				sample[p] = seg_end[p] - dist*view_dir[p];
 			}
 
+
 			if (!m_grid->is_inside_grid(sample)){
 				//if the sample touches the edges of the grid 			
 				image->set_pixel_color(i, j, background_color);
 				continue;
 			}
 
-
 			T_d f_value = m_grid->get_f_value_at_sample(sample, grad, type,
 				true);
 
 			color_t local_color = color_trans_func(f_value);
 
-			local_color.clamp();
-			local_color.a = 1.0;
+			local_color.clamp();			
 
 			image->set_pixel_color(i, j, local_color);
 			
+
+			if (compute_error){
+				//ground truth 
+				T_d f_value_gt = analytical_func(sample[0], sample[1], sample[2]);
+				color_t gt_color = color_trans_func(f_value_gt);
+				gt_color.clamp();
+				image->accumelate_error(i, j, gt_color);
+			}
+
+
+
 		}
 	}
 

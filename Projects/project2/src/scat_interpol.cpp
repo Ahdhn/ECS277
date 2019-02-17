@@ -1,6 +1,7 @@
 #include <string>
 #include <iostream>
 #include <stdint.h>
+#include <chrono>
 
 #include "common.h"
 #include "grid.h"
@@ -20,6 +21,22 @@
 typedef uint32_t index_t;
 typedef int32_t int_t;
 typedef double data_t;
+
+
+template<class T>
+inline void unflat_id(T flat_id, T&i, T&j, T&k, const T n[3]){
+	k = flat_id / (n[0] * n[1]);
+	flat_id -= (k * n[0] * n[1]);
+	j = flat_id / n[0];
+	i = flat_id % n[0];
+}
+template<class T, class T_d>
+void get_location(const T i, const T j, const T k, T_d&x, T_d&y, T_d&z, 
+	const T_d s[3], const T_d x0[]){
+	x = i*s[0] + x0[0];
+	y = j*s[1] + x0[1];
+	z = k*s[2] + x0[2];
+}
 
 
 template<typename T>
@@ -58,46 +75,21 @@ void read_file_raw(std::string filename, uint32_t x0, uint32_t x1, uint32_t x2,
 template<typename T, typename T_d, typename bits_type>
 void init_grid(std::string filename, Grid<T, T_d, DIM>*&grid, T_d&f_value_min,
 	T_d&f_value_max, T n_grid[3], T_d grid_lower[3], T_d grid_upper[3],
-	T_d bk_color[4], T_d l_color[4], ScatData<T, T_d>*data = nullptr, 
+	T_d bk_color[4], T_d l_color[4], ScatData<T, T_d>*data, 
 	INTERPOL_METHOD scat_data_interpol_method = INTERPOL_METHOD::S2_G, 
 	const T K = 5, const T_d R = 0.1){
-	
-	//read input file and fill in the data 
-	//unsigned short*raw_data = NULL;
-	//unsigned char*raw_data = NULL;
-	bits_type* raw_data = nullptr;
+		
 
+	bits_type* raw_data = NULL;
 	if (filename.size() > 1){
 		read_file_raw(filename, n_grid[0], n_grid[1], n_grid[2], raw_data);
 	}
-
-	//testing on five cocentric spheres 
-	//sphere0, f=0.5, radius = 0.2 
-	//sphere1, f=0.2, radius = 0.3
-	//else f = 0.1
-	//T_d r0_sq(0.2*0.2), r1_sq(0.4*0.4);
-	//T_d f0(0.5), f1(0.4), f2(0.1);
 	
+	T_d s[3];
 
-	T n[3];	
-	n[0] = n_grid[0];
-	n[1] = n_grid[1];
-	n[2] = n_grid[2];
-
-	
-	T_d x_lower[3], x_upper[3], s[3];
-
-	x_lower[0] = grid_lower[0];
-	x_lower[1] = grid_lower[1];
-	x_lower[2] = grid_lower[2];
-
-	x_upper[0] = grid_upper[0];
-	x_upper[1] = grid_upper[1];
-	x_upper[2] = grid_upper[2];
-
-	s[0] = T_d(x_upper[0] - x_lower[0]) / T_d(n[0] - 1);
-	s[1] = T_d(x_upper[1] - x_lower[1]) / T_d(n[1] - 1);
-	s[2] = T_d(x_upper[2] - x_lower[2]) / T_d(n[2] - 1);
+	s[0] = T_d(grid_upper[0] - grid_lower[0]) / T_d(n_grid[0] - 1);
+	s[1] = T_d(grid_upper[1] - grid_lower[1]) / T_d(n_grid[1] - 1);
+	s[2] = T_d(grid_upper[2] - grid_lower[2]) / T_d(n_grid[2] - 1);
 	
 	color_t background_color;
 	background_color.r = bk_color[0];
@@ -136,21 +128,21 @@ void init_grid(std::string filename, Grid<T, T_d, DIM>*&grid, T_d&f_value_min,
 	T_d light_intensity = 1.0;
 	
 
-	static Grid<T, T_d, 3> my_grid(n, x_lower, s, background_color, light_color,
+	static Grid<T, T_d, 3> my_grid(n_grid, grid_lower, s, background_color, light_color,
 		light_pos, light_dir, phong_power, attenuation_const, light_intensity,
 		ambient_light, ambient_const, diffuse_const, specular_const);
 
 	f_value_min = std::numeric_limits<T_d>::max();
 	f_value_max = -std::numeric_limits<T_d>::max();
 		
-	uint32_t total_size = n[0] * n[1] * n[2];
+	uint32_t total_size = n_grid[0] * n_grid[1] * n_grid[2];
+	
 
 
 	uint32_t num_processed = 0;
 	std::cout << " init_grid::filling the grid 0% ";
 	std::vector<int> percentage(1, 0);
-
-	
+		
 	for (uint32_t i = 0; i < total_size; i++){
 
 		num_processed++;
@@ -164,7 +156,8 @@ void init_grid(std::string filename, Grid<T, T_d, DIM>*&grid, T_d&f_value_min,
 
 
 		T_d my_data;
-		if (raw_data != nullptr){
+
+		if (raw_data != NULL){
 			my_data = T_d(raw_data[i]);
 		}
 		else if (data != nullptr){
@@ -172,7 +165,7 @@ void init_grid(std::string filename, Grid<T, T_d, DIM>*&grid, T_d&f_value_min,
 			my_grid.get_location(i, xx, yy, zz);
 			my_data = data->interpolate(xx, yy, zz,
 				scat_data_interpol_method, K, R);
-		}
+		}		
 		else{
 			PRINT_ERROR("init_grid():: no vaild source to fill in the grid");
 		}
@@ -189,26 +182,19 @@ void init_grid(std::string filename, Grid<T, T_d, DIM>*&grid, T_d&f_value_min,
 		}
 		f_value_max -= f_value_min;
 		f_value_min = 0;
+	}	
+
+	if (!raw_data){
+		free(raw_data);
 	}
-
-	double avg(0), stddev(0);
-
-	if (raw_data != nullptr){
-		compute_avg_stddev(raw_data, total_size, avg, stddev);
-		std::cout << "\n        Function max value=  " << f_value_max << std::endl;
-		std::cout << "        Function min value=  " << f_value_min << std::endl;
-		std::cout << "        Function avg value=  " << avg << std::endl;
-		std::cout << "        Function std dev=    " << stddev << std::endl;
-	}
-
-
-	//my_grid.export_grid("grid.csv");
 	grid = &my_grid;
 }
 
-template<typename T, typename T_d, typename bits_type>
-void init_data(std::string filename, ScatData<T, T_d>*&data, T_d&f_value_min,
-	T_d&f_value_max, const T num_data =100){
+template<typename T, typename T_d, typename bits_type, typename AnalyticalFunc>
+void init_data(std::string filename, ScatData<T, T_d>*&data, T n_grid[3], 
+	T_d grid_lower[3], T_d grid_upper[3],
+	T_d&f_value_min, T_d&f_value_max, const T num_data,
+	AnalyticalFunc analytical_function){
 	
 	f_value_min = std::numeric_limits<T_d>::max();
 	f_value_max = -std::numeric_limits<T_d>::max();
@@ -216,22 +202,71 @@ void init_data(std::string filename, ScatData<T, T_d>*&data, T_d&f_value_min,
 	static ScatData<T, T_d> my_data(true, num_data);
 	
 	if (filename.size() <= 1){
-		//analytical function
-		
+		//analytical function defined in unit box 
 		for (uint32_t i = 0; i < num_data;i++){
 			T_d x = T_d(rand()) / T_d(RAND_MAX);
 			T_d y = T_d(rand()) / T_d(RAND_MAX);
 			T_d z = T_d(rand()) / T_d(RAND_MAX);
-			T_d f = sqrt(x*x + y*y + z*z);
+			
+			//T_d f = sqrt(x*x + y*y + z*z);
+			T_d f = analytical_function(x, y, z);
+
 			f_value_min = std::min(f_value_min, f);
 			f_value_max= std::max(f_value_max, f);
 			my_data.fill_data(i, x, y, z, f);
 		}
 	}
 	else{
+		//function from input raw file 
+		bits_type* raw_data = nullptr;
+		read_file_raw(filename, n_grid[0], n_grid[1], n_grid[2], raw_data);
 
+		T total_size = n_grid[0] * n_grid[1] * n_grid[2];
+
+		T_d s[3];
+		s[0] = T_d(grid_upper[0] - grid_lower[0]) / T_d(n_grid[0] - 1);
+		s[1] = T_d(grid_upper[1] - grid_lower[1]) / T_d(n_grid[1] - 1);
+		s[2] = T_d(grid_upper[2] - grid_lower[2]) / T_d(n_grid[2] - 1);
+
+		std::vector<uint32_t> rand_num(total_size);
+		fill_sequential_numbers(rand_num.data(), rand_num.size());
+		rand_permute_subset(rand_num.data(), rand_num.size());
+		for (uint32_t q = 0; q < num_data; q++){
+			T id = rand_num[q];
+
+			//map the flat id into 3d 
+			T i, j, k;
+			unflat_id(id, i, j, k, n_grid);
+			T_d x, y, z;
+			get_location(i, j, k, x, y, z, s, grid_lower);
+
+			T_d f = T_d(raw_data[id]);
+
+			f_value_min = std::min(f_value_min, f);
+			f_value_max = std::max(f_value_max, f);
+			my_data.fill_data(q, x, y, z, f);
+		}
+
+		if (f_value_min != 0){
+			//shift values so that f_value_min = 0		
+			for (uint32_t i = 0; i < total_size; i++){
+				my_data.fill_data(i, my_data.get_data_value(i) - f_value_min);
+			}
+			f_value_max -= f_value_min;
+			f_value_min = 0;
+		}
+
+		if (raw_data != nullptr){
+			double avg(0), stddev(0);
+			compute_avg_stddev(raw_data, total_size, avg, stddev);
+			std::cout << "\n      Function max value=  " << f_value_max << std::endl;
+			std::cout << "        Function min value=  " << f_value_min << std::endl;
+			std::cout << "        Function avg value=  " << avg << std::endl;
+			std::cout << "        Function std dev=    " << stddev << std::endl;
+		}
+
+		free(raw_data);
 	}
-
 	data = &my_data;
 }
 
@@ -240,7 +275,9 @@ int main(int argc, char**argv){
 
 	std::string inputfilename = STRINGIFY(INPUT_DIR)"stent/stent16.raw";
 
-	std::string model_name = "lol";
+	std::string model_name = "";
+
+	std::string output_image_name = "";
 
 	index_t samples_per_cell = 1;
 
@@ -256,30 +293,42 @@ int main(int argc, char**argv){
 
 	data_t light_color[4]; light_color[0] = light_color[1] = light_color[2] = 255.0; light_color[3] = 1.0;
 
-	index_t image_res[2]; image_res[0] = image_res[1] = 512;
+	index_t image_res[2]; image_res[0] = image_res[1] = 1024;
 
-	int projection = 2;
+	data_t slice_depth = 0.5;
 
-	int scat_data_interpol_method = 2;
+	int projection = 1;
+
+	int scat_data_interpol_method = 4;
+
+	index_t data_fun = 1;
+
 	INTERPOL_METHOD scat_data_interpol;
 
-	uint32_t num_data = 1000;
+	uint32_t num_data = 10000;
 	
 	uint32_t K = 10;
 
 	double R = 0.1;
+		
 
 	//Command line args 
 	if (argc > 1){
 		if (cmdOptionExists(argv, argc + argv, "-h")){
 			std::cout << "\n\nUsage:  RayCasting.exe <-option X>" << std::endl;
 			std::cout << " -h:        Display this massage and exits\n" << std::endl;
-
+			
 			std::cout << " -input:    Input file. Input file should under the data/ subdirectory" << std::endl;
 			std::cout << "            The default is " << inputfilename << std::endl << std::endl;
 
 			std::cout << " -model:    Model name used to name output images" << std::endl;
 			std::cout << "            The default is " << model_name << std::endl << std::endl;
+
+			std::cout << " -output:   Output image name. If left empty, the name will be combination " << std::endl;
+			std::cout << "            of the model name and view direction which is the default" << std::endl << std::endl;
+
+			std::cout << " -slice:    The slice depth perpedicular to the view direction normalized to the grid depth (i.e.,[0,1])" << std::endl;
+			std::cout << "            The default is " << slice_depth << std::endl << std::endl;
 
 			std::cout << " -xn:       Number of grid points in the x-direction" << std::endl;
 			std::cout << "            The default is " << n_grid[0] << std::endl << std::endl;
@@ -346,8 +395,8 @@ int main(int argc, char**argv){
 			std::cout << "            at the grid back face. 3 is projection along z-axis pointing to the grid top face" << std::endl;
 			std::cout << "            The default is " << projection << std::endl << std::endl;			
 
-			std::cout << " -samples:  Number of samples per cell" << std::endl;
-			std::cout << "            The default is " << samples_per_cell << std::endl << std::endl;
+			//std::cout << " -samples:  Number of samples per cell" << std::endl;
+			//std::cout << "            The default is " << samples_per_cell << std::endl << std::endl;
 
 			std::cout << " -scat:     Indicates scatter data interpolation method where" << std::endl;
 			std::cout << "            0 = Global Shepard 1" << std::endl;
@@ -359,6 +408,10 @@ int main(int argc, char**argv){
 			std::cout << "            6 = Global Reciprocal Hardy's" << std::endl;
 			std::cout << "            7 = Localized Reciprocal Hardy's" << std::endl;
 			std::cout << "            The default is " << scat_data_interpol_method << std::endl;
+
+			std::cout << " -data_fun: Indicates the type of the scatter data where " << std::endl;
+			std::cout << "            0 = Data from input file (.raw file)" << std::endl;
+			std::cout << "            1 = sqrt(x^2 + y^2 + z^2)" << std::endl;
 
 			std::cout << " -num_data: Number of scatter data points." << std::endl;
 			std::cout << "            The default is " << num_data << std::endl << std::endl;
@@ -375,21 +428,39 @@ int main(int argc, char**argv){
 		if (cmdOptionExists(argv, argc + argv, "-input")){
 			inputfilename = STRINGIFY(INPUT_DIR) +
 				std::string(getCmdOption(argv, argv + argc, "-input"));
+			std::cout << "	input= " << inputfilename << std::endl;
 		}
 		if (cmdOptionExists(argv, argc + argv, "-model")){
 			model_name = std::string(getCmdOption(argv, argv + argc, "-model"));
+			std::cout << "	model= " << model_name << std::endl;
+		}		
+		if (cmdOptionExists(argv, argc + argv, "-output")){
+			output_image_name = std::string(getCmdOption(argv, argv + argc, "-output"));
 		}
 		if (cmdOptionExists(argv, argc + argv, "-samples")){
 			samples_per_cell = atoi(getCmdOption(argv, argv + argc, "-samples"));
+			std::cout << "	samples= " << samples_per_cell << std::endl;
 		}
+
+		if (cmdOptionExists(argv, argc + argv, "-data_fun")){
+			data_fun = atoi(getCmdOption(argv, argv + argc, "-data_fun"));
+		}
+
+		if (cmdOptionExists(argv, argc + argv, "-slice")){
+			slice_depth = atof(getCmdOption(argv, argv + argc, "-slice"));
+		}
+
 		if (cmdOptionExists(argv, argc + argv, "-xn")){
 			n_grid[0] = atoi(getCmdOption(argv, argv + argc, "-xn"));
+			std::cout << "	xn= " << n_grid[0] << std::endl;
 		}
 		if (cmdOptionExists(argv, argc + argv, "-yn")){
 			n_grid[1] = atoi(getCmdOption(argv, argv + argc, "-yn"));
+			std::cout << "	yn= " << n_grid[1] << std::endl;
 		}
 		if (cmdOptionExists(argv, argc + argv, "-zn")){
 			n_grid[2] = atoi(getCmdOption(argv, argv + argc, "-zn"));
+			std::cout << "	zn= " << n_grid[2] << std::endl;
 		}
 
 		if (cmdOptionExists(argv, argc + argv, "-x_lower")){
@@ -402,6 +473,8 @@ int main(int argc, char**argv){
 
 		if (cmdOptionExists(argv, argc + argv, "-z_lower")){
 			grid_lower[2] = atoi(getCmdOption(argv, argv + argc, "-z_lower"));
+			std::cout << "	lower corner= (" << grid_lower[0] << ", " << grid_lower[1] << ", "
+				<< grid_lower[2] << ") " << std::endl;
 		}
 
 		if (cmdOptionExists(argv, argc + argv, "-x_upper")){
@@ -414,6 +487,8 @@ int main(int argc, char**argv){
 
 		if (cmdOptionExists(argv, argc + argv, "-z_upper")){
 			grid_upper[2] = atoi(getCmdOption(argv, argv + argc, "-z_upper"));
+			std::cout << "	upper corner= (" << grid_upper[0] << ", " << grid_upper[1] << ", "
+				<< grid_upper[2] << ") " << std::endl;
 		}
 
 		if (cmdOptionExists(argv, argc + argv, "-bk_r")){
@@ -430,6 +505,9 @@ int main(int argc, char**argv){
 
 		if (cmdOptionExists(argv, argc + argv, "-bk_a")){
 			bg_color[3] = atoi(getCmdOption(argv, argv + argc, "-bk_a"));
+			std::cout << "	background color= (" << bg_color[0] << ", " 
+				<< bg_color[1] << ", "
+				<< bg_color[2] << ", " << bg_color[3] << ") " << std::endl;
 		}
 
 		if (cmdOptionExists(argv, argc + argv, "-light_r")){
@@ -446,6 +524,9 @@ int main(int argc, char**argv){
 
 		if (cmdOptionExists(argv, argc + argv, "-light_a")){
 			light_color[3] = atoi(getCmdOption(argv, argv + argc, "-light_a"));
+			std::cout << "	light color= (" << light_color[0] << ", "
+				<< light_color[1] << ", "
+				<< light_color[2] << ", " << light_color[3] << ") " << std::endl;
 		}
 
 		if (cmdOptionExists(argv, argc + argv, "-res_x")){
@@ -458,6 +539,7 @@ int main(int argc, char**argv){
 
 		if (cmdOptionExists(argv, argc + argv, "-bits")){
 			bits = atoi(getCmdOption(argv, argv + argc, "-bits"));
+			std::cout << "	bits= " << bits << std::endl;
 		}
 
 		if (cmdOptionExists(argv, argc + argv, "-proj")){
@@ -475,7 +557,7 @@ int main(int argc, char**argv){
 			K = atoi(getCmdOption(argv, argv + argc, "-k"));
 		}
 		if (cmdOptionExists(argv, argc + argv, "-r")){
-			R = atoi(getCmdOption(argv, argv + argc, "-r"));
+			R = atof(getCmdOption(argv, argv + argc, "-r"));
 		}
 	}
 
@@ -515,29 +597,21 @@ int main(int argc, char**argv){
 	else{
 		PRINT_ERROR("Invalid scatter data interpolation method. It should be [0,7]");
 	}
-
-
-	std::cout << "	input= " << inputfilename << std::endl;
-	std::cout << "	model= " << model_name << std::endl;
-	std::cout << "	xn= " << n_grid[0] << std::endl;
-	std::cout << "	yn= " << n_grid[1] << std::endl;
-	std::cout << "	zn= " << n_grid[2] << std::endl;
-	std::cout << "	lower corner= (" << grid_lower[0] << ", " << grid_lower[1] << ", "
-		<< grid_lower[2] << ") " << std::endl;
-	std::cout << "	upper corner= (" << grid_upper[0] << ", " << grid_upper[1] << ", "
-		<< grid_upper[2] << ") " << std::endl;
-	std::cout << "	bits= " << bits << std::endl;
-	std::cout << "	background color= (" << bg_color[0] << ", " << bg_color[1] << ", "
-		<< bg_color[2] << ", " << bg_color[3] << ") " << std::endl;
-	std::cout << "	light color= (" << light_color[0] << ", " << light_color[1] << ", "
-		<< light_color[2] << ", " << light_color[3] << ") " << std::endl;
-	std::cout << "	projection= " << projection << std::endl;
-	std::cout << "	samples= " << samples_per_cell << std::endl;
+	if (model_name.size() == 0){
+		model_name = image_prefix;
+	}
+		
+	
+	
+	std::cout << "	output_image_name= " << output_image_name << std::endl;
+	std::cout << "	projection= " << projection << std::endl;	
 	std::cout << "	image_resolution= " << image_res[0] << " X " << image_res[1] << std::endl;
 	std::cout << "	scat_data_interpol_method= " << scat_data_interpol_method << std::endl;
 	std::cout << "	num_data= " << num_data << std::endl;
 	std::cout << "	k= " << K << std::endl;
 	std::cout << "	R= " << R << std::endl;
+	std::cout << "	slice_depth= " << slice_depth << std::endl;
+	std::cout << "	data_fun= " << data_fun << std::endl;
 	
 
 	//setup the image using the right projection
@@ -608,44 +682,80 @@ int main(int argc, char**argv){
 	//Init data 
 	data_t data_f_value_min(0), data_f_value_max(0);
 	ScatData<index_t, data_t> *my_data= NULL;
-	init_data<index_t, data_t, unsigned char>("", my_data, data_f_value_min, 
-		data_f_value_max, num_data);
+
+	//==================================
+	//lambda function for the analytical function 
+	auto data_analytical_func = [data_fun](data_t x, data_t y, data_t z){
+		data_t f;
+		if (data_fun == 1){
+			f = sqrt(x*x + y*y + z*z);
+		}
+		else if (data_fun == 2){
+			//f = sqrt(sin(x) + cos(y));
+			f = cos(y)*sin(x);
+		}
+		return f;
+	};
+	//==================================
+
+	if (bits == 8){
+		init_data<index_t, data_t, unsigned char>(
+			(data_fun==0) ? inputfilename : "" , my_data, n_grid,
+			grid_lower, grid_upper,
+			data_f_value_min,
+			data_f_value_max, num_data, data_analytical_func);
+	}
+	else if (bits == 16){
+		init_data<index_t, data_t, unsigned short>(
+			(data_fun == 0) ? inputfilename : "", my_data, n_grid,
+			grid_lower, grid_upper,
+			data_f_value_min,
+			data_f_value_max, num_data, data_analytical_func);
+	}
+	else{
+		PRINT_ERROR("Invalid bits size" + std::to_string(bits));
+	}
 
 	//my_data->export_data("data.csv");
-		
-	my_data->precompute(scat_data_interpol, K, R);
-		
-	//to indicate that the grid data comes from scatter data
-	bits = 0;
+	
+	
+	
 
 	//Init grid 
 	Grid<index_t, data_t, DIM> *my_grid = NULL;
-	data_t f_value_min(0), f_value_max(0);
+	data_t f_value_min(0), f_value_max(0);	
 
-	if (bits == 0){
-		//for testing with analytical function 
+	std::chrono::high_resolution_clock::time_point t0_init_grid =
+		std::chrono::high_resolution_clock::now();
+
+	my_data->precompute(scat_data_interpol, K, R);
+
+	if (bits == 8){
 		init_grid<index_t, data_t, unsigned char>("", my_grid,
 			f_value_min, f_value_max, n_grid, grid_lower, grid_upper, bg_color,
 			light_color, my_data, scat_data_interpol, K, R);
 	}
-	else if (bits == 8){
-		init_grid<index_t, data_t, unsigned char>(inputfilename, my_grid, 
-			f_value_min, f_value_max, n_grid, grid_lower, grid_upper, bg_color,
-			light_color);
-	}
 	else if (bits == 16){
-		init_grid<index_t, data_t, unsigned short>(inputfilename, my_grid, 
+		init_grid<index_t, data_t, unsigned short>("", my_grid,
 			f_value_min, f_value_max, n_grid, grid_lower, grid_upper, bg_color,
-			light_color);
+			light_color, my_data, scat_data_interpol, K, R);
 	}
 	else{
 		PRINT_ERROR("Invalid bits size" + std::to_string(bits));
 	}
 	
+
+	std::chrono::high_resolution_clock::time_point t1_init_grid =
+		std::chrono::high_resolution_clock::now();
+
+	double init_grid_time = 
+		std::chrono::duration<double, std::milli>(t1_init_grid - t0_init_grid).count();
+
 	//image for the trilinear case
 	TGAImage tga_image_linear(image_res[0], image_res[1], TGAImage::RGBA);
 	Image<index_t, int_t, data_t> my_image_linear(image_res, image_x0, image_xn, 
-		image_normal, &tga_image_linear, image_prefix + ".tga",
+		image_normal, &tga_image_linear, 
+		((output_image_name.size() >= 1) ? output_image_name : image_prefix) + ".tga",
 		flip_vertical, flip_horizontal);
 
 	//init renderer   
@@ -656,23 +766,24 @@ int main(int argc, char**argv){
 	auto color_transfer_func = [f_value_min, f_value_max,
 		model_name](data_t f_value){
 		color_t color;
-		COLOR_MAP cm = COLOR_MAP::RAINBOW;
-		if (model_name == "tooth"){
-			cm = COLOR_MAP::RAINBOW;
-		}
+		COLOR_MAP cm = COLOR_MAP::RAINBOW;		
 		colormap(cm,
 			(f_value - f_value_min) / (f_value_max - f_value_min) //f_value / f_value_max
 			,color.r, color.g, color.b);
+		color.a = 1.0;		
 		return color;
 	};
 
 	
 	//do slicing 
-	my_renderer.slice(&my_image_linear, color_transfer_func,0.5);
+	my_renderer.slice(&my_image_linear, color_transfer_func,
+		data_analytical_func, slice_depth, true);
 
-	
-	
-	system("pause");
+	std::fstream error_file("error.txt", std::ios::app);
+	error_file.precision(30);
+	error_file << model_name << " " << K << "	" << my_image_linear.get_error()
+		<<"	"<< init_grid_time << std::endl;
+	error_file.close();
 
 	return 0;
 }

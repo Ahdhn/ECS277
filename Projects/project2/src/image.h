@@ -115,6 +115,28 @@ public:
 		m_image->write_tga_file(m_filename.c_str());
 	}
 
+	T_d get_error(){
+		if (num_error_counted != m_image_res[0] * m_image_res[1]){
+			PRINT_ERROR("Did not compute the error for all pixels yet!!!");
+		}
+		error *= 1.0 / T_d(m_image_res[0] * m_image_res[1]);
+		error = sqrt(error);
+		return error;
+	}
+
+	void accumelate_error(T i, T j, color_t gt_color){
+		color_t pixel_color = get_pixel_color(i, j);
+		T_d dif_r = gt_color.r - pixel_color.r;
+		T_d dif_g = gt_color.g - pixel_color.g;
+		T_d dif_b = gt_color.b - pixel_color.b;
+
+		T_d diff = dif_r*dif_r + dif_g*dif_g + dif_b*dif_b;
+
+		error += diff;
+
+		num_error_counted++;
+	}
+
 	~Image(){
 		
 	};
@@ -134,6 +156,9 @@ private:
 	T_d m_s;//spacing
 
 	std::string m_filename;
+
+	T_d error;
+	T num_error_counted;
 };
 
 template<class T, class T_i, class T_d>
@@ -203,14 +228,10 @@ Image<T, T_i, T_d>::Image(T image_res[2], T_d image_x0[3], T_d image_xn[3],
 	m_pixels_color = 
 		(color_t*)malloc(m_image_res[0] * m_image_res[1] * sizeof(color_t));
 	
+	error = 0;
+	num_error_counted = 0;
 
-	
-	/*if (m_image == NULL){
-		static TGAImage image(m_image_res[0], m_image_res[1], TGAImage::RGBA);
-		m_image = &image;
-	}*/
-
-
+	m_filename = STRINGIFY(OUTPUT_DIR) + m_filename;
 }
 
 

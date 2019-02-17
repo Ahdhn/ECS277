@@ -42,10 +42,22 @@ public:
 		set_max_min(data_id);
 	}
 
+	void fill_data(T data_id, T_d f){
+		if (data_id >= m_num_data){
+			PRINT_ERROR("ScatData::fill_data() id is out of range!!!");
+		}		
+		m_data[data_id].f = f;		
+	}
+
 	scat_data_t<T_d> get_data(const T data_id){		
 		return m_data[data_id];
 	}
 
+	T_d get_data_value(const T data_id){
+		return m_data[data_id].f;
+	}
+
+	
 	void precompute(INTERPOL_METHOD method, uint32_t K = 5,
 		double R = 0.1){
 		if (!m_kd_built){
@@ -74,7 +86,7 @@ public:
 				m_F_hardy(i) = m_data[i].f;
 			}
 			//solve the system 
-			m_C_hardy = m_M_hardy.colPivHouseholderQr().solve(m_F_hardy);
+			m_C_hardy = m_M_hardy.householderQr().solve(m_F_hardy);
 		}			
 	}
 		
@@ -357,7 +369,7 @@ inline T_d ScatData<T, T_d>::hardy_local(T_d&x, T_d&y, T_d&z,
 		m_F_hardy(i) = m_data[m_k_nearest[i]].f;
 	}
 	//solve the system 
-	m_C_hardy = m_M_hardy.colPivHouseholderQr().solve(m_F_hardy);
+	m_C_hardy = m_M_hardy.householderQr().solve(m_F_hardy);
 
 	//get val
 	T_d val = 0;

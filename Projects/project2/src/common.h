@@ -258,4 +258,18 @@ inline void compute_avg_stddev(const T*arr, uint32_t size, double &avg,
 
 }
 
+
+template <typename T>
+inline void fill_sequential_numbers(T*arr, const uint32_t size,
+	const T start = 0){
+	std::iota(arr, arr + size, start);
+}
+
+template <typename T>
+inline void rand_permute_subset(T*d_in, const uint32_t end,
+	const uint32_t start = 0){
+	std::random_shuffle(d_in + start, d_in + end);
+}
+
+
 #endif /*__COMMON__*/
