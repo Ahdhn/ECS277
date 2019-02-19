@@ -275,13 +275,13 @@ int main(int argc, char**argv){
 
 	std::string inputfilename = STRINGIFY(INPUT_DIR)"stent/stent16.raw";
 
-	std::string model_name = "";
+	std::string model_name = "stent";
 
 	std::string output_image_name = "";
 
 	index_t samples_per_cell = 1;
 
-	index_t n_grid[3]; n_grid[0] = n_grid[1] = n_grid[2] = 50;
+	index_t n_grid[3]; n_grid[0] = n_grid[1] = n_grid[2] = 512;
 		
 	index_t bits = 16;
 
@@ -299,18 +299,36 @@ int main(int argc, char**argv){
 
 	int projection = 1;
 
-	int scat_data_interpol_method = 1;
+	int scat_data_interpol_method = 3;
 
-	index_t data_fun = 1;
+	index_t data_fun = 0;
 
 	INTERPOL_METHOD scat_data_interpol;
 
-	uint32_t num_data = 10000;
+	uint32_t num_data = 1000000;
 	
 	uint32_t K = 10;
 
 	double R = 0.1;
+
+	if (model_name == "tooth"){
+		n_grid[0] = n_grid[2] = 256;
+		n_grid[1] = 161;
+		grid_upper[0] = grid_upper[1] = 1.0;
+		grid_upper[2] = 161.0 / 256.0;
+		projection = -3;
+		slice_depth = 0.25;
+	}
+
+	if (model_name == "stent"){
+		n_grid[0] = n_grid[1] = 512;
+		n_grid[2] = 174;
+		grid_upper[2] = 1.0;
+		grid_upper[0] = grid_upper[1] = (512 * 0.8398) / (174 * 3.2);
+		projection = 2;	
 		
+		slice_depth = 0.3;
+	}
 
 	//Command line args 
 	if (argc > 1){
@@ -597,8 +615,14 @@ int main(int argc, char**argv){
 	else{
 		PRINT_ERROR("Invalid scatter data interpolation method. It should be [0,7]");
 	}
-	if (model_name.size() == 0){
+
+	
+	if (model_name.size() == 0){		
 		model_name = image_prefix;
+	}
+	else
+	{
+		model_name += image_prefix;
 	}
 		
 	
@@ -763,12 +787,17 @@ int main(int argc, char**argv){
 	
 
 	//Color Transfer Function 
-	auto color_transfer_func = [f_value_min, f_value_max,
+	data_t stent_min(50000), stent_max(-50000);
+	auto color_transfer_func = [&stent_min, &stent_max, f_value_min, f_value_max,
 		model_name](data_t f_value){
+
+		stent_min = std::min(stent_min, f_value);
+		stent_max = std::max(stent_max, f_value);
+
 		color_t color;
-		COLOR_MAP cm = COLOR_MAP::RAINBOW;		
+		COLOR_MAP cm = COLOR_MAP::PLASMA;
 		colormap(cm,
-			(f_value - f_value_min) / (f_value_max - f_value_min) //f_value / f_value_max
+			(f_value - f_value_min) / (1980 - f_value_min) //f_value / f_value_max
 			,color.r, color.g, color.b);
 		color.a = 1.0;		
 		return color;
@@ -779,11 +808,18 @@ int main(int argc, char**argv){
 	my_renderer.slice(&my_image_linear, color_transfer_func,
 		data_analytical_func, slice_depth, true);
 
-	std::fstream error_file("error.txt", std::ios::app);
+
+	std::cout << "stent_min= " << stent_min << std::endl;
+	std::cout << "stent_max= " << stent_max << std::endl;
+
+	/*std::fstream error_file("error.txt", std::ios::app);
 	error_file.precision(30);
 	error_file << model_name << " " << K << "	" << my_image_linear.get_error()
 		<<"	"<< init_grid_time << std::endl;
-	error_file.close();
+	error_file.close();*/
+
+	system("pause");
+	
 
 	return 0;
 }
