@@ -275,13 +275,13 @@ int main(int argc, char**argv){
 
 	std::string inputfilename = STRINGIFY(INPUT_DIR)"stent/stent16.raw";
 
-	std::string model_name = "stent";
+	std::string model_name = "";
 
 	std::string output_image_name = "";
 
 	index_t samples_per_cell = 1;
 
-	index_t n_grid[3]; n_grid[0] = n_grid[1] = n_grid[2] = 512;
+	index_t n_grid[3]; n_grid[0] = n_grid[1] = n_grid[2] = 64;
 		
 	index_t bits = 16;
 
@@ -305,13 +305,13 @@ int main(int argc, char**argv){
 
 	INTERPOL_METHOD scat_data_interpol;
 
-	uint32_t num_data = 1000000;
+	uint32_t num_data = 10000;
 	
 	uint32_t K = 10;
 
 	double R = 0.1;
 
-	if (model_name == "tooth"){
+	/*if (model_name == "tooth"){
 		n_grid[0] = n_grid[2] = 256;
 		n_grid[1] = 161;
 		grid_upper[0] = grid_upper[1] = 1.0;
@@ -328,7 +328,7 @@ int main(int argc, char**argv){
 		projection = 2;	
 		
 		slice_depth = 0.3;
-	}
+	}*/
 
 	//Command line args 
 	if (argc > 1){
@@ -470,15 +470,15 @@ int main(int argc, char**argv){
 
 		if (cmdOptionExists(argv, argc + argv, "-xn")){
 			n_grid[0] = atoi(getCmdOption(argv, argv + argc, "-xn"));
-			std::cout << "	xn= " << n_grid[0] << std::endl;
+			
 		}
 		if (cmdOptionExists(argv, argc + argv, "-yn")){
 			n_grid[1] = atoi(getCmdOption(argv, argv + argc, "-yn"));
-			std::cout << "	yn= " << n_grid[1] << std::endl;
+			
 		}
 		if (cmdOptionExists(argv, argc + argv, "-zn")){
 			n_grid[2] = atoi(getCmdOption(argv, argv + argc, "-zn"));
-			std::cout << "	zn= " << n_grid[2] << std::endl;
+			
 		}
 
 		if (cmdOptionExists(argv, argc + argv, "-x_lower")){
@@ -629,6 +629,7 @@ int main(int argc, char**argv){
 	
 	std::cout << "	output_image_name= " << output_image_name << std::endl;
 	std::cout << "	projection= " << projection << std::endl;	
+	std::cout << "	grid_resolution= " << n_grid[0] << " X " << n_grid[1] << " X " << n_grid [2] << std::endl;
 	std::cout << "	image_resolution= " << image_res[0] << " X " << image_res[1] << std::endl;
 	std::cout << "	scat_data_interpol_method= " << scat_data_interpol_method << std::endl;
 	std::cout << "	num_data= " << num_data << std::endl;
@@ -724,7 +725,7 @@ int main(int argc, char**argv){
 
 	if (bits == 8){
 		init_data<index_t, data_t, unsigned char>(
-			(data_fun==0) ? inputfilename : "" , my_data, n_grid,
+			(data_fun == 0) ? inputfilename : "", my_data, n_grid,
 			grid_lower, grid_upper,
 			data_f_value_min,
 			data_f_value_max, num_data, data_analytical_func);
@@ -739,7 +740,7 @@ int main(int argc, char**argv){
 	else{
 		PRINT_ERROR("Invalid bits size" + std::to_string(bits));
 	}
-
+	std::cout <<"\n Done initialize the scatter data" << std::endl;
 	//my_data->export_data("data.csv");
 	
 	
@@ -775,6 +776,8 @@ int main(int argc, char**argv){
 	double init_grid_time = 
 		std::chrono::duration<double, std::milli>(t1_init_grid - t0_init_grid).count();
 
+	std::cout << "\n initialize gird time = " << init_grid_time << " (ms)" << std::endl;
+
 	//image for the trilinear case
 	TGAImage tga_image_linear(image_res[0], image_res[1], TGAImage::RGBA);
 	Image<index_t, int_t, data_t> my_image_linear(image_res, image_x0, image_xn, 
@@ -786,18 +789,13 @@ int main(int argc, char**argv){
 	Renderer<index_t, int_t, data_t> my_renderer(my_grid, samples_per_cell);
 	
 
-	//Color Transfer Function 
-	data_t stent_min(50000), stent_max(-50000);
-	auto color_transfer_func = [&stent_min, &stent_max, f_value_min, f_value_max,
+	//Color Transfer Function 	
+	auto color_transfer_func = [f_value_min, f_value_max,
 		model_name](data_t f_value){
-
-		stent_min = std::min(stent_min, f_value);
-		stent_max = std::max(stent_max, f_value);
-
 		color_t color;
-		COLOR_MAP cm = COLOR_MAP::PLASMA;
+		COLOR_MAP cm = COLOR_MAP::RAINBOW;
 		colormap(cm,
-			(f_value - f_value_min) / (1980 - f_value_min) //f_value / f_value_max
+			(f_value - f_value_min) / (f_value_max - f_value_min) //f_value / f_value_max
 			,color.r, color.g, color.b);
 		color.a = 1.0;		
 		return color;
@@ -806,17 +804,21 @@ int main(int argc, char**argv){
 	
 	//do slicing 
 	my_renderer.slice(&my_image_linear, color_transfer_func,
-		data_analytical_func, slice_depth, true);
+		data_analytical_func, slice_depth, data_fun != 0);
 
 
-	std::cout << "stent_min= " << stent_min << std::endl;
-	std::cout << "stent_max= " << stent_max << std::endl;
+	//std::cout << "stent_min= " << stent_min << std::endl;
+	//std::cout << "stent_max= " << stent_max << std::endl;
 
-	/*std::fstream error_file("error.txt", std::ios::app);
-	error_file.precision(30);
-	error_file << model_name << " " << K << "	" << my_image_linear.get_error()
-		<<"	"<< init_grid_time << std::endl;
-	error_file.close();*/
+	if (data_fun != 0){
+		std::cout << " RMS Error = " << my_image_linear.get_error() << std::endl;
+	
+		std::fstream error_file("error.txt", std::ios::app);
+		error_file.precision(30);
+		error_file << model_name << " " << K << "	" << my_image_linear.get_error()
+			<<"	"<< init_grid_time << std::endl;
+		error_file.close();
+	}
 
 	system("pause");
 	
