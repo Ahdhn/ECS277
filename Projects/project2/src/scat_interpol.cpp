@@ -299,7 +299,7 @@ int main(int argc, char**argv){
 
 	int projection = 1;
 
-	int scat_data_interpol_method = 4;
+	int scat_data_interpol_method = 1;
 
 	index_t data_fun = 1;
 

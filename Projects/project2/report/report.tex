@@ -21,50 +21,63 @@
 
 \maketitle
 
-This is the manual for running the ray casting program from the command line. The following command line can be used to run the program  \texttt{ScatInterpol.exe -option X}. Below is a list of all available options. 
-\vspace{5mm}
+This is the manual for running the scatter data interpolation program from the command line. The following command line can be used to run the program \texttt{ScatInterpol.exe -option X}. Below is a list of all available options. 
+
 
 %============table========
-\begin{figure}[tbh]
-
+\begin{figure}
   
 \begin{tabular}{ |l| l|}
   \hline
   Option & Effect   \\ \hhline{|=|=|}
-  \texttt{-h}  &  Display this massage and exits \\
-  \texttt{-input}  &  Input file. Input file should under the \textsf{data/} subdirectory \\
-  \texttt{-model}  &   Model name used to name output images \\
-  \texttt{-xn}  &    Number of grid points in the x-direction \\
-  \texttt{-yn}  &    Number of grid points in the y-direction \\
-  \texttt{-zn}  &    Number of grid points in the z-direction \\
-  \texttt{-x\_lower}  &     X coordinates of the gird lower corner \\
-  \texttt{-y\_lower}  &     Y coordinates of the gird lower corner \\
-  \texttt{-z\_lower}  &     Z coordinates of the gird lower corner \\
-  \texttt{-x\_upper}  &      X coordinates of the gird upper corner \\  
-  \texttt{-y\_upper}  &      Y coordinates of the gird upper corner \\  
-  \texttt{-z\_upper}  &      Z coordinates of the gird upper corner \\  
-  \texttt{-bits}  &      bit size of the input .raw file \\  
-  \texttt{-bg\_r}  &      Red channel for the background color between 0 to 255 \\  
-  \texttt{-bg\_g}  &      Green channel for the background color between 0 to 255 \\  
-  \texttt{-bg\_b}  &      Blue channel for the background color between 0 to 255 \\    
-  \texttt{-bg\_a}  &      Alpha channel for the background color between 0 to 1 \\      
-  \texttt{-light\_r}  &     Red channel for the light color between 0 to 255 \\      
-  \texttt{-light\_g}  &     Green channel for the light color between 0 to 255 \\      
-  \texttt{-light\_b}  &     Blue channel for the light color between 0 to 255 \\      
-  \texttt{-light\_b}  &     Alpha channel for the light color between 0 to 1 \\      
-  \texttt{-res\_x}  &       Image resolution in the x-direction \\      
-  \texttt{-res\_y}  &       Image resolution in the y-direction \\      
-  \texttt{-proj}  &       The projection direction where the value represents the axis of the normal\\  
-			         &   and the sign represents the direction e.g., -1 is projection along x-axis looking\\
-			         &   at the grid back face. 3 is projection along z-axis pointing to the grid top face\\      
-  \texttt{-samples}  &   Number of samples per cell \\      
+  \texttt{-h}         & Display this massage and exits \\
+  \texttt{-input}     & Input file. Input file should under the \textsf{data/} subdirectory \\
+  \texttt{-model}     & Model name used to name output images \\
+  \texttt{-scat}      & Indicates scatter data interpolation method where \\
+  				      & 0 = Global Shepard 1\\
+  				      & 1 = Localized Shepard 1\\
+  				      & 2 = Global Shepard 2\\
+  				      & 3 = Localized Shepard 2\\
+  				      & 4 = Global Multiquadric Hardy's\\
+  				      & 5 = Localized Multiquadric Hardy's\\
+  				      & 6 = Global Reciprocal Hardy's\\
+  				      & 7 = Localized Reciprocal Hardy's\\
+  				      & The default is 1\\
+  \texttt{-num_data}  & Number of scatter data points. The default is 1000 \\  
+  \texttt{-data_fun}  & Indicates the type of the scatter data where \\
+                      & 0 = Data from input file (.raw file) \\
+                      & 1 = sqrt(x^2 + y^2 + z^2) \\
+  \texttt{-k}         & Number of K nearest neighbours used for localized methods \\
+                      & The default is 10\\
+  \texttt{-r}         & Constant used with Hardy method \\
+                      & The default is 0.1\\  				      
+  \texttt{-output}    & Output image name. If left empty, the name will be combination \\
+  				      & of the model name and view direction which is the default\\
+  \texttt{-slice}     & The slice depth perpendicular to the view direction normalized \\
+                      & to the grid depth (i.e.,[0,1]) \\
+  				      & The default is 0.5\\  
+  \texttt{-xn}        & Number of grid points in the x-direction \\
+  \texttt{-yn}        & Number of grid points in the y-direction \\
+  \texttt{-zn}        & Number of grid points in the z-direction \\
+  \texttt{-x\_lower}  & X coordinates of the gird lower corner \\
+  \texttt{-y\_lower}  & Y coordinates of the gird lower corner \\
+  \texttt{-z\_lower}  & Z coordinates of the gird lower corner \\
+  \texttt{-x\_upper}  & X coordinates of the gird upper corner \\  
+  \texttt{-y\_upper}  & Y coordinates of the gird upper corner \\  
+  \texttt{-z\_upper}  & Z coordinates of the gird upper corner \\  
+  \texttt{-bits}      & bit size of the input .raw file \\   
+  \texttt{-res\_x}    & Image resolution in the x-direction \\      
+  \texttt{-res\_y}    & Image resolution in the y-direction \\      
+  \texttt{-proj}      & The projection direction where the value represents the axis of the normal\\  
+			          & and the sign represents the direction e.g., -1 is projection along x-axis looking\\
+			          & at the grid back face. 3 is projection along z-axis pointing to the grid top face\\      
+  \texttt{-samples}   & Number of samples per cell \\      
     
   \hline
-\end{tabular} 
-
-   \label{tab:metric}
+\end{tabular}    
 \end{figure} 
 	    
+%===================================================================	    
 \begin{figure}[!tbh]
 \centering        
    \subfloat {\includegraphics[width=0.49\textwidth]{../viz/points_error.pdf}}
@@ -84,7 +97,8 @@ This is the manual for running the ray casting program from the command line. Th
 
 \begin{figure}[!tbh]
 \centering        
-   \subfloat {\includegraphics[width=0.49\textwidth]{../viz/r2_error.pdf}}
+   \subfloat {\includegraphics[width=0.46\textwidth]{../viz/r2_error.pdf}}
+   \subfloat [Ground Truth] {\includegraphics[width=0.30\textwidth]{../viz/ground_truth.png}}
    \caption{The affect of $R^{2}$ factor in Hardy's methods. Here we used 10000 points with $K=10$.}
    \label{fig:r21}
 \end{figure} 	    
