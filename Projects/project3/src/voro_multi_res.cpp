@@ -22,6 +22,7 @@ void points_gen(ScatData2D<index_t, data_t>*my_scat_data, const index_t
 
 	//generate four corner points and then fill the interior randomly 
 	data_t x, y, f;
+
 	//(0,0)
 	x = 0;
 	y = 0;
@@ -46,6 +47,32 @@ void points_gen(ScatData2D<index_t, data_t>*my_scat_data, const index_t
 	f = sqrt(x*x + y*y);
 	my_scat_data->add_data(x, y, f);
 
+	//(0.5,0)
+	x = 0.5;
+	y = 0;
+	f = sqrt(x*x + y*y);
+	my_scat_data->add_data(x, y, f);
+	
+	//(0.0,0.5)
+	x = 0;
+	y = 0.5;
+	f = sqrt(x*x + y*y);
+	my_scat_data->add_data(x, y, f);
+
+	//(0.5,1.0)
+	x = 0.5;
+	y = 1.0;
+	f = sqrt(x*x + y*y);
+	my_scat_data->add_data(x, y, f);
+
+	//(1.0,0.5)
+	x = 1.0;
+	y = 0.5;
+	f = sqrt(x*x + y*y);
+	my_scat_data->add_data(x, y, f);
+
+
+
 	for (index_t i = 0; i < num_points; i++){
 		data_t x = data_t(rand()) / data_t(RAND_MAX);
 		data_t y = data_t(rand()) / data_t(RAND_MAX);
@@ -67,14 +94,11 @@ void points_gen(ScatData2D<index_t, data_t>*my_scat_data, const index_t
 
 int main(int argc, char**argv){
 
-	std::string ss = "Hi LOL AA";
-	for (size_t i = 0; i < ss.size(); i++){
-		std::cout << ss[i] << std::endl;
-	}
-
-	index_t num_points = 1000;	
+	
+	index_t num_points = 500;	
 
 	index_t knn = 60;
+
 
 	//Command line args 
 	if (argc > 1){

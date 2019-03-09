@@ -118,7 +118,15 @@ public:
 		m_point[0] = m_data[pnt_id].x;
 		m_point[1] = m_data[pnt_id].y;
 		m_point[2] = 0;
-		m_kd_tree.FindNNearest(m_point, K, k_nearest);
+		if (K == 1){
+			int nearest = m_kd_tree.FindNearest(m_point);
+			k_nearest.clear();
+			k_nearest.push_back(nearest);
+		}
+		else{
+			m_kd_tree.FindNNearest(m_point, K, k_nearest);
+		}
+		
 	}
 	
 	void normalize_values(){
@@ -148,8 +156,10 @@ private:
 	std::vector<scat_data2d_t<T_d>>m_data;
 	std::vector<T>m_data_current;
 	std::vector<T>m_data_leftout;
-	std::vector<T>m_interpol;
-	std::vector<T>m_error;
+	std::vector<T_d>m_interpol;
+	std::vector<T_d>m_error;
+	std::vector<T_d>m_error_max;
+	std::vector<T>m_tile_count;
 
 	KdTree m_kd_tree;
 	T m_K;
@@ -194,35 +204,15 @@ void ScatData2D<T, T_d>::run_multi_res(){
 	m_data_current.clear();
 	m_data_current.reserve(m_data.size());
 	m_data_leftout.reserve(m_data.size());
-	m_interpol.reserve(m_data.size());//stores the interpolation of the leftout
-	m_error.reserve(m_data.size());//stores the error of the current data points
-	
+	m_interpol.resize(m_data.size());//stores the interpolation of the leftout
+	m_error.resize(m_data.size());//stores the error of the current data points(RMS)
+	m_error_max.resize(m_data.size());//stores the error of the current data points(max)
+	m_tile_count.resize(m_data.size());//number of left out in this tile 
+
 	//initial vorodel (to setup the boundary points)
 	VoroDel<T, T_d> vorodel(m_K, m_data.size());
 	vorodel.construct_del(this, m_data_current);
 	
-	//insert all boundary point as starting point 
-	/*for (T i = 0; i < m_data.size(); ++i){
-		if (vorodel.is_boundary(i)){
-			m_data_current.push_back(i);
-		}
-		else{
-			if (i != 4){
-				m_data_leftout.push_back(i);
-			}
-		}
-	}
-	m_data_current.push_back(4);*/
-
-	for (T i = 0; i < m_data.size(); ++i){
-		if (i == 4){ continue; }
-		m_data_current.push_back(i);		
-		
-	}
-	m_data_leftout.push_back(4);
-
-	assert(m_data_current.size() + m_data_leftout.size() == m_data.size());
-
 	//Voronoi shading lambda function 
 	auto voro_shading = [this](index_t p){
 		data_t f = this->get_data_value(p);
@@ -236,10 +226,35 @@ void ScatData2D<T, T_d>::run_multi_res(){
 		return color;
 
 	};
-	vorodel.plot("test.ps", this, false, true, voro_shading, true);
 
-	for (;;){
+	
+	vorodel.plot("voro.ps", this, false, true, voro_shading, false);
+
+	//insert all boundary point as starting point 
+	
+	for (T i = 0; i < m_data.size(); ++i){
+		if (vorodel.is_boundary(i)){
+			m_data_current.push_back(i);
+		}
+		else{
+			if (i != 8){
+				m_data_leftout.push_back(i);
+			}
+		}
+	}
+	m_data_current.push_back(8);
+
+	int step = 0;
+	while (m_data_current.size() <= m_data.size()){		
+		std::cout << " step = " << step << " current = " <<m_data_current.size()
+			<< " leftout = " << m_data_leftout.size() << std::endl;
 		assert(m_data_current.size() + m_data_leftout.size() == m_data.size());
+		memset(m_interpol.data(), 0, m_interpol.size()*sizeof(T_d));
+		memset(m_error.data(), 0, m_error.size()*sizeof(T_d));
+		memset(m_error_max.data(), 0, m_error_max.size()*sizeof(T_d));
+		memset(m_tile_count.data(), 0, m_tile_count.size()*sizeof(T));
+
+
 		//build new kd-tree on the current data
 		m_kd_tree.~KdTree();
 		m_kd_tree.BuildTree(m_data, m_data_current);
@@ -247,17 +262,108 @@ void ScatData2D<T, T_d>::run_multi_res(){
 		//build new vorodel on the current data
 		vorodel.update_k(std::min(T(m_data_current.size() - 2), m_K));
 		vorodel.construct_del(this, m_data_current);
-		vorodel.plot("test.ps", this, false, true, voro_shading, true);
+
+		if (step % 100 == 0){
+			std::string name_v = "voro" + std::to_string(step) + ".ps";
+			//std::string name_v = "voro.ps";
+			vorodel.plot(name_v, this, false, true, voro_shading, false);
+		}
 		
+		if (m_data_leftout.size() == 0){
+			std::string name_v = "voro" + std::to_string(step) + ".ps";			
+			vorodel.plot(name_v, this, false, true, voro_shading, false);
+			break;
+		}
+
 		//compute interpolation of the left out 
 		for (T i = 0; i < m_data_leftout.size(); ++i){
-			vorodel.sibson_interpol(this, m_data_current.size(), m_data_leftout[i]);
+			
+			m_interpol[m_data_leftout[i]] = vorodel.sibson_interpol(this,
+				m_data_current.size(), m_data_leftout[i]);			
 		}
 
 
 		//compute the error of each voronoi cell 
-		
+		//each left out point will contribute to the error of the cell it lies 
+		//inside i.e., its closest current data so we can use the kdtree we have 
+		//for this 		
+ 		for (T i = 0; i < m_data_leftout.size(); ++i){
+			get_knn(m_data_leftout[i], 1, m_k_nearest);
 
+			T tile = m_k_nearest[0];
+
+			T_d f_tile = get_data_value(tile);
+						
+			T_d diff = f_tile - m_interpol[m_data_leftout[i]];
+
+			m_error[tile] += diff*diff;
+
+			//m_error_max[tile] = std::max(abs(diff), m_error_max[tile]);
+
+			m_tile_count[tile]++;
+		}
+
+
+		T_d max_error(-100000), min_error(100000);
+		T max_error_tile_id;
+		for (T i = 0; i < m_data_current.size();i++){
+			T tile = m_data_current[i];
+			if (m_tile_count[tile] > 0){
+				m_error[tile] /= m_tile_count[tile];
+
+				if (m_error[tile] > max_error){
+					max_error = m_error[tile];
+					max_error_tile_id = tile;
+				}
+
+				if (m_error[tile] < min_error){
+					min_error = m_error[tile];
+				}
+			}
+		}		
+
+		//shading lambda function 
+		auto voro_shading_error = [this, &max_error, &min_error](index_t p){
+			data_t e = this->m_error[p];			
+			color_t color;
+			COLOR_MAP cm = COLOR_MAP::MAGMA;
+			colormap(cm,
+				(e - min_error) /
+				(max_error - min_error)
+				, color.r, color.g, color.b);
+			color.a = 1.0;
+			return color;
+		};
+
+		if (step % 100 == 0 || m_data_leftout.size() == 1){
+			std::string name_e = "voro_err" + std::to_string(step) + ".ps";
+			//std::string name_e = "voro_err.ps";
+			vorodel.plot(name_e, this, false, true, voro_shading_error, false);
+		}
+
+		//insert one of the leftout points that lie inside the tile_max_error 		
+		for (T i = 0; i < m_data_leftout.size(); i++){
+			get_knn(m_data_leftout[i], 1, m_k_nearest);
+			if (m_k_nearest[0] == max_error_tile_id){
+				//insert 
+				std::cout << "Max Error = " << max_error << " at tile " <<
+					max_error_tile_id << "at ("
+					<< get_data_coord(max_error_tile_id, 0) 
+					<< ", "
+					<< get_data_coord(max_error_tile_id, 1) 
+					<< ") --> ";
+					std::cout << m_data_leftout[i] << " inserted at ("
+					<< get_data_coord(m_data_leftout[i], 0) << ", "
+					<< get_data_coord(m_data_leftout[i], 1) << ") " 
+					<< std::endl << std::endl;
+
+				m_data_current.push_back(m_data_leftout[i]);
+				m_data_leftout.erase(m_data_leftout.begin() + i);				
+				break;
+			}
+		}
+		
+		step++;
 	}
 }
 

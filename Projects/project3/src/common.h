@@ -309,6 +309,18 @@ inline T_d TriCircumcenter2d(const T_d xa, const T_d ya,
 	T_d m1 = -1 * dx1 / dy1;
 	T_d m2 = -1 * dx2 / dy2;
 
+	if (abs(m1 - m2) < EPSILON){
+		//if the three points are colinear
+		T_d r1 = T_d(rand()) / T_d(RAND_MAX);
+		T_d r2 = T_d(rand()) / T_d(RAND_MAX);
+		return TriCircumcenter2d(
+			((r1 > 0.5) ? xa + EPSILON : xa - EPSILON),
+			((r2 > 0.5) ? ya + EPSILON : ya - EPSILON),
+			xb , yb , 
+			xc , yc , 
+			x_cir,y_cir);
+	}
+
 	x_cir = (y2 - y1 + m1*x1 - m2*x2) / (m1 - m2);
 	y_cir = (x1 - x_cir) * dx1 / dy1 + y1;
 
