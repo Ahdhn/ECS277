@@ -97,7 +97,7 @@ Figure~\ref{fig:curv} shows the artifact of our method where most of the ambient
 
 \paragraph{Quality:} 
 
-Figure~\ref{fig:bunny_ao} shows the impact of the ambient occlusion. We notice that after applying the ambient occlusion (middle), the depth cue is improved and that adds more realism to the image. Comparing the results against the ground-truth, we find the we have capture most prominent area that should be occluded. Moreover, our results is less darkened overall where the occluded object is too far away (the Bunny back should be occluded by its ears). This is because we rely on the information in the narrow-band only.
+Figure~\ref{fig:bunny_ao} and Figure~\ref{fig:dragon_ao} show the impact of the ambient occlusion. We notice that after applying the ambient occlusion (bunny middle), the depth cue is improved and that adds more realism to the image. Comparing the results against the ground-truth, we find the we have capture most prominent area that should be occluded. Moreover, our results is less darkened overall where the occluded object is too far away (the Bunny back should be occluded by its ears). This is because we rely on the information in the narrow-band only.
 
 \begin{figure}[!tbh]
 \centering        
@@ -113,7 +113,7 @@ Figure~\ref{fig:bunny_ao} shows the impact of the ambient occlusion. We notice t
    \subfloat {\includegraphics[width=0.65\textwidth]{figs/dragon.PNG}}
    \subfloat {\includegraphics[width=0.35\textwidth]{figs/libigl_dragon.PNG}}
    \caption{Showing the impact of applying the ambient occlusion on a mesh of 3M vertices. Left is without ambient occlusion, middle is with ambient occlusion, right is the ground-truth}
-   \label{fig:bunny_ao}
+   \label{fig:dragon_ao}
 \end{figure}
 
 \paragraph{Timing:}
