@@ -197,6 +197,9 @@ inline bool ScatData2D<T, T_d>::check_point(const T_d x, const T_d y){
 	return true;
 }
 
+
+
+
 template <class T, class T_d>
 void ScatData2D<T, T_d>::run_multi_res(){
 	
@@ -263,11 +266,11 @@ void ScatData2D<T, T_d>::run_multi_res(){
 		vorodel.update_k(std::min(T(m_data_current.size() - 2), m_K));
 		vorodel.construct_del(this, m_data_current);
 
-		if (step % 100 == 0){
-			std::string name_v = "voro" + std::to_string(step) + ".ps";
-			//std::string name_v = "voro.ps";
+		//if (step % 100 == 0){
+			//std::string name_v = "voro" + std::to_string(step) + ".ps";
+			std::string name_v = "voro.ps";
 			vorodel.plot(name_v, this, false, true, voro_shading, false);
-		}
+		//}
 		
 		if (m_data_leftout.size() == 0){
 			std::string name_v = "voro" + std::to_string(step) + ".ps";			
@@ -335,11 +338,11 @@ void ScatData2D<T, T_d>::run_multi_res(){
 			return color;
 		};
 
-		if (step % 100 == 0 || m_data_leftout.size() == 1){
-			std::string name_e = "voro_err" + std::to_string(step) + ".ps";
-			//std::string name_e = "voro_err.ps";
+		//if (step % 100 == 0 || m_data_leftout.size() == 1){
+			//std::string name_e = "voro_err" + std::to_string(step) + ".ps";
+			std::string name_e = "voro_err.ps";
 			vorodel.plot(name_e, this, false, true, voro_shading_error, false);
-		}
+		//}
 
 		//insert one of the leftout points that lie inside the tile_max_error 		
 		for (T i = 0; i < m_data_leftout.size(); i++){

@@ -95,7 +95,7 @@ void points_gen(ScatData2D<index_t, data_t>*my_scat_data, const index_t
 int main(int argc, char**argv){
 
 	
-	index_t num_points = 500;	
+	index_t num_points = 100;	
 
 	index_t knn = 60;
 

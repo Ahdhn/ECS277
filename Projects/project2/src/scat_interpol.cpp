@@ -704,7 +704,7 @@ int main(int argc, char**argv){
 	bool flip_vertical(false), flip_horizontal(false);
 
 
-	//Init data 
+	//***************************Init data 
 	data_t data_f_value_min(0), data_f_value_max(0);
 	ScatData<index_t, data_t> *my_data= NULL;
 
@@ -741,12 +741,10 @@ int main(int argc, char**argv){
 		PRINT_ERROR("Invalid bits size" + std::to_string(bits));
 	}
 	std::cout <<"\n Done initialize the scatter data" << std::endl;
-	//my_data->export_data("data.csv");
-	
 	
 	
 
-	//Init grid 
+	//**********************************Init grid 
 	Grid<index_t, data_t, DIM> *my_grid = NULL;
 	data_t f_value_min(0), f_value_max(0);	
 
@@ -778,7 +776,7 @@ int main(int argc, char**argv){
 
 	std::cout << "\n initialize gird time = " << init_grid_time << " (ms)" << std::endl;
 
-	//image for the trilinear case
+	//***********************image for the trilinear case
 	TGAImage tga_image_linear(image_res[0], image_res[1], TGAImage::RGBA);
 	Image<index_t, int_t, data_t> my_image_linear(image_res, image_x0, image_xn, 
 		image_normal, &tga_image_linear, 
@@ -786,8 +784,7 @@ int main(int argc, char**argv){
 		flip_vertical, flip_horizontal);
 
 	//init renderer   
-	Renderer<index_t, int_t, data_t> my_renderer(my_grid, samples_per_cell);
-	
+	Renderer<index_t, int_t, data_t> my_renderer(my_grid, samples_per_cell);	
 
 	//Color Transfer Function 	
 	auto color_transfer_func = [f_value_min, f_value_max,
@@ -805,10 +802,6 @@ int main(int argc, char**argv){
 	//do slicing 
 	my_renderer.slice(&my_image_linear, color_transfer_func,
 		data_analytical_func, slice_depth, data_fun != 0);
-
-
-	//std::cout << "stent_min= " << stent_min << std::endl;
-	//std::cout << "stent_max= " << stent_max << std::endl;
 
 	if (data_fun != 0){
 		std::cout << " RMS Error = " << my_image_linear.get_error() << std::endl;
