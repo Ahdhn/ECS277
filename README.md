@@ -1,5 +1,9 @@
-# ECS277
-Advanced Visualization - Winter Quarter 2019
+# ECS277 - Advanced Visualization
+
+Professor: Bernd Hamann
+
+UC Davis - Winter Quarter 2019
+
 
 Syllabus/references:
 
